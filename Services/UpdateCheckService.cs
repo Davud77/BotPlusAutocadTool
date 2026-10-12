@@ -16,19 +16,22 @@ namespace BotPlusAutocadTool.Services
         private static CancellationTokenSource _cancel;
         private static Task<ReleaseVersion> _pending;
         private static bool _manual;
+        private static readonly UpdateSchedule Schedule = new UpdateSchedule();
 
         public static void Start()
         {
             AcadApp.Idle -= OnIdle;
             AcadApp.Idle += OnIdle;
             var settings = SettingsService.Settings;
-            var elapsed = DateTime.UtcNow - settings.LastUpdateCheckUtc;
-            if (settings.AutoCheckUpdates && (elapsed >= TimeSpan.FromHours(24) || elapsed < TimeSpan.Zero)) Check(false);
+            Schedule.NewSession();
+            // Every new AutoCAD session checks, even if another session checked today.
+            if (settings.AutoCheckUpdates) Check(false);
         }
         public static void Check(bool manual)
         {
             if (_pending != null) { if (manual) _manual = true; return; }
             _manual = manual;
+            if (!manual) Schedule.Checked(DateTime.UtcNow);
             SettingsService.Settings.LastUpdateCheckUtc = DateTime.UtcNow;
             SettingsService.Save();
             _cancel = new CancellationTokenSource();
@@ -51,6 +54,8 @@ namespace BotPlusAutocadTool.Services
         }
         private static void OnIdle(object sender, EventArgs e)
         {
+            if (_pending == null && SettingsService.Settings.AutoCheckUpdates && Schedule.IsDue(DateTime.UtcNow))
+                Check(false);
             if (_pending == null || !_pending.IsCompleted || AcadApp.DocumentManager.MdiActiveDocument == null) return;
             var doc = AcadApp.DocumentManager.MdiActiveDocument;
             if (!string.IsNullOrEmpty(doc.CommandInProgress)) return;

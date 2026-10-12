@@ -29,11 +29,12 @@ namespace BotPlusAutocadTool
         private const string RibbonTabTitle = "BotPlusAutocadTool";
 
         private static ContextMenuExtension _contextMenu;
+        private DateTime _nextUiCheckUtc;
 
         public void Initialize()
         {
-            Services.SelectionLengthService.Start();
-            Services.UpdateCheckService.Start();
+            try { Services.SelectionLengthService.Start(); } catch (System.Exception ex) { LogStartupError(ex); }
+            try { Services.UpdateCheckService.Start(); } catch (System.Exception ex) { LogStartupError(ex); }
             AcadApp.Idle += Application_Idle;
         }
 
@@ -52,9 +53,16 @@ namespace BotPlusAutocadTool
 
         private void Application_Idle(object sender, EventArgs e)
         {
-            AcadApp.Idle -= Application_Idle;
+            if (DateTime.UtcNow < _nextUiCheckUtc) return;
+            _nextUiCheckUtc = DateTime.UtcNow.AddSeconds(1);
+            // Keep checking: Ribbon may not exist on the first Idle, and workspaces can rebuild it.
             CreateRibbonSafe();
-            CreateContextMenuSafe();
+            if (_contextMenu == null) CreateContextMenuSafe();
+        }
+
+        private static void LogStartupError(System.Exception ex)
+        {
+            AcadApp.DocumentManager.MdiActiveDocument?.Editor.WriteMessage("\n[BotPlus] Ошибка дополнительного сервиса: " + ex.Message + "\n");
         }
 
         private void CreateRibbonSafe()

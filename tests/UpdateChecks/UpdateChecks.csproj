@@ -1,4 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><TargetFramework>net10.0</TargetFramework><OutputType>Exe</OutputType><ImplicitUsings>enable</ImplicitUsings></PropertyGroup>
   <ItemGroup><Compile Include="..\..\Services\ReleaseVersion.cs" Link="ReleaseVersion.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="..\..\Services\UpdateSchedule.cs" Link="UpdateSchedule.cs" /></ItemGroup>
 </Project>

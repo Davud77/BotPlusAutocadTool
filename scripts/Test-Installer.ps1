@@ -1,6 +1,8 @@
 param([Parameter(Mandatory=$true)][string]$InstallerPath, [string]$PreviousInstallerPath)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
+$existing = Get-ItemProperty -LiteralPath 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{98BED5F2-3CAB-47DD-8344-E681FEA048DB}_is1' -ErrorAction SilentlyContinue
+if ($existing.InstallLocation -and !$existing.InstallLocation.StartsWith((Join-Path $root 'artifacts\installer-test\'), [StringComparison]::OrdinalIgnoreCase)) { throw 'A real per-user installation exists; isolated test will not overwrite its registration.' }
 $testRoot = Join-Path $root ('artifacts\installer-test\' + [Guid]::NewGuid().ToString('N'))
 $installPath = Join-Path $testRoot 'BotPlusAutocadTool.bundle'
 New-Item -ItemType Directory -Path $testRoot -Force | Out-Null
@@ -29,8 +31,13 @@ else { Run-TestInstall 'install.log' }
 $obsolete = Join-Path $installPath 'Contents\Windows\2027\obsolete-test.dll'
 'test-only obsolete dependency' | Set-Content -LiteralPath $obsolete
 Run-TestInstall 'upgrade.log'
+if ($PreviousInstallerPath) {
+    $log = Get-Content -LiteralPath (Join-Path $testRoot 'upgrade.log') -Raw
+    if ($log -notmatch 'BotPlus: uninstall previous version') { throw 'Previous version uninstaller was not invoked.' }
+}
 if (Test-Path -LiteralPath $obsolete) { throw 'Obsolete DLL was not removed during update.' }
-$uninstaller = Join-Path $installPath 'unins000.exe'
+$uninstaller = Get-ChildItem -LiteralPath $installPath -Filter 'unins*.exe' | Sort-Object Name -Descending | Select-Object -First 1 -ExpandProperty FullName
+if (!$uninstaller) { throw 'New version uninstaller was not created.' }
 $process = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/LOG="'+(Join-Path $testRoot 'uninstall.log')+'"')) -WindowStyle Hidden -PassThru -Wait
 if ($process.ExitCode -ne 0) { throw "Uninstall failed: $($process.ExitCode)" }
 if (Test-Path -LiteralPath (Join-Path $installPath 'Contents\Windows\2027\BotPlusAutocadTool.dll')) { throw 'Plugin survived uninstall.' }

@@ -15,6 +15,7 @@ namespace BotPlusAutocadTool.Services
         private static readonly HashSet<Document> Documents = new HashSet<Document>();
         private static Pane _pane;
         private static bool _started, _dirty, _paneUnavailable;
+        private static DateTime _retryPaneAt;
         private static string _previousMacro, _ownedMacro;
 
         public static double Calculate(Transaction transaction, IEnumerable<ObjectId> ids)
@@ -70,7 +71,7 @@ namespace BotPlusAutocadTool.Services
 
         private static void OnIdle(object sender, EventArgs e)
         {
-            if (!_dirty) return;
+            if (!_dirty && !(_paneUnavailable && DateTime.UtcNow >= _retryPaneAt)) return;
             var doc = AcadApp.DocumentManager.MdiActiveDocument;
             if (doc != null && !string.IsNullOrEmpty(doc.CommandInProgress)) return;
             _dirty = false;
@@ -95,14 +96,19 @@ namespace BotPlusAutocadTool.Services
         private static void Display(double total)
         {
             var text = total > 0 ? "Сумм. длина: " + total.ToString("F2", CultureInfo.CurrentCulture) : "";
-            if (!_paneUnavailable && _pane == null)
+            if (_pane == null && (!_paneUnavailable || DateTime.UtcNow >= _retryPaneAt))
             {
                 try
                 {
                     _pane = new Pane { Text = text, MinimumWidth = 160, ToolTipText = "Длина текущего выделения в единицах чертежа: линии, полилинии, дуги и сплайны.", Visible = total > 0 };
-                    AcadApp.StatusBar.Panes.Add(_pane);
+                    // Native Model/Paper switch is the first built-in pane.
+                    AcadApp.StatusBar.Panes.Insert(0, _pane);
+                    _paneUnavailable = false;
+                    if (_previousMacro != null && Convert.ToString(AcadApp.GetSystemVariable("MODEMACRO")) == _ownedMacro)
+                        AcadApp.SetSystemVariable("MODEMACRO", _previousMacro);
+                    _previousMacro = _ownedMacro = null;
                 }
-                catch (System.Exception) { _pane = null; _paneUnavailable = true; }
+                catch (System.Exception) { _pane = null; _paneUnavailable = true; _retryPaneAt = DateTime.UtcNow.AddSeconds(10); }
             }
             if (_pane != null)
             {

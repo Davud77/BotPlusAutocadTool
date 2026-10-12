@@ -6,7 +6,7 @@
 #endif
 #define ProjectDir ".."
 #ifndef AppVersion
-  #define AppVersion "1.1.0"
+  #define AppVersion "1.1.1"
 #endif
 
 [Setup]
@@ -56,6 +56,7 @@ Source: "{#ProjectDir}\README.md"; DestDir: "{app}\Documentation"; Flags: ignore
 Source: "{#ProjectDir}\LICENSE"; DestDir: "{app}\Documentation"; Flags: ignoreversion
 Source: "{#ProjectDir}\THIRD-PARTY-NOTICES.md"; DestDir: "{app}\Documentation"; Flags: ignoreversion
 Source: "{#ProjectDir}\docs\VALIDATION.md"; DestDir: "{app}\Documentation"; Flags: ignoreversion
+Source: "{#ProjectDir}\scripts\Get-LoadDiagnostics.ps1"; DestDir: "{app}\Documentation"; Flags: ignoreversion
 
 [Code]
 function GetInstallDirectory(Param: String): String;
@@ -81,10 +82,53 @@ begin
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
+var RootKey: Integer; Key, InstallDir, Uninstaller: String; ExitCode, QuotePos: Integer;
 begin
   Result := '';
   if AutoCADIsRunning() then
+  begin
     Result := 'Закройте AutoCAD и Core Console перед установкой или обновлением. / Close AutoCAD and Core Console before installing.';
+    Exit;
+  end;
+  if IsAdminInstallMode then RootKey := HKLM64 else RootKey := HKCU64;
+  Key := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{98BED5F2-3CAB-47DD-8344-E681FEA048DB}_is1';
+  if RegQueryStringValue(RootKey, Key, 'InstallLocation', InstallDir) then
+  begin
+    // Only remove this product at the selected target; never uninstall an unrelated/cross-scope installation.
+    if CompareText(RemoveBackslashUnlessRoot(InstallDir), RemoveBackslashUnlessRoot(WizardDirValue)) <> 0 then
+    begin
+      Result := 'Обнаружена другая папка установки BotPlusAutocadTool. Сначала удалите прежнюю копию через «Установленные приложения» Windows: ' + InstallDir;
+      Exit;
+    end;
+    if not RegQueryStringValue(RootKey, Key, 'UninstallString', Uninstaller) then
+    begin
+      Result := 'Не найдена команда удаления прежней версии.';
+      Exit;
+    end;
+    if (Length(Uninstaller) > 0) and (Uninstaller[1] = '"') then
+    begin
+      Delete(Uninstaller, 1, 1);
+      QuotePos := Pos('"', Uninstaller);
+      if QuotePos > 0 then Uninstaller := Copy(Uninstaller, 1, QuotePos - 1);
+    end;
+    if (CompareText(ExtractFileDir(Uninstaller), RemoveBackslashUnlessRoot(InstallDir)) <> 0) or
+       (CompareText(ExtractFileExt(Uninstaller), '.exe') <> 0) or
+       (CompareText(Copy(ExtractFileName(Uninstaller), 1, 5), 'unins') <> 0) then
+    begin
+      Result := 'Некорректный путь деинсталлятора прежней версии.';
+      Exit;
+    end;
+    if not FileExists(Uninstaller) then
+    begin
+      Result := 'Не найден деинсталлятор прежней версии: ' + Uninstaller;
+      Exit;
+    end;
+    Log('BotPlus: uninstall previous version: ' + Uninstaller);
+    if not Exec(Uninstaller, '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART', '', SW_HIDE, ewWaitUntilTerminated, ExitCode) then
+      Result := 'Не удалось запустить удаление прежней версии.'
+    else if ExitCode <> 0 then
+      Result := 'Удаление прежней версии не завершилось успешно. Код: ' + IntToStr(ExitCode);
+  end;
 end;
 
 function InitializeUninstall(): Boolean;
