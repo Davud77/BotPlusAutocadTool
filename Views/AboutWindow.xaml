@@ -1,0 +1,50 @@
+<!-- ========================================================================
+     OOXGN - Copyright (c) 2026. All rights reserved.
+     Author: OOXGN | Project: BotPlusAutocadTool
+     SPDX-License-Identifier: AGPL-3.0-only
+     ======================================================================== -->
+<Window x:Class="BotPlusAutocadTool.Views.AboutWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="О программе" Height="400" Width="500"
+        ResizeMode="NoResize" WindowStartupLocation="CenterScreen"
+        Background="#1D1D1D">
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- WEAM Logo (loaded from code-behind) -->
+        <Image x:Name="LogoImage" 
+               Grid.Row="0" 
+               Stretch="Uniform" 
+               Margin="20,10,20,10"
+               RenderOptions.BitmapScalingMode="HighQuality" Source="/BotPlusAutocadTool;component/Resources/logo.png"/>
+
+        <!-- Version & Name -->
+        <StackPanel Grid.Row="1" HorizontalAlignment="Center" Margin="0,0,0,8">
+            <TextBlock x:Name="VersionText"
+                       FontSize="12" 
+                       Foreground="#888888" 
+                       HorizontalAlignment="Center"/>
+            <TextBlock Text="Инструменты автоматизации для AutoCAD"
+                       FontSize="11" 
+                       Foreground="#666666" 
+                       HorizontalAlignment="Center"
+                       Margin="0,2,0,0"/>
+        </StackPanel>
+
+        <!-- Footer -->
+        <TextBlock Grid.Row="2" HorizontalAlignment="Center">
+            <Hyperlink NavigateUri="https://weam.ru" 
+                       RequestNavigate="Hyperlink_RequestNavigate"
+                       Foreground="#555555"
+                       TextDecorations="None">
+                weam.ru
+            </Hyperlink>
+        </TextBlock>
+    </Grid>
+</Window>

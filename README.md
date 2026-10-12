@@ -137,4 +137,3 @@ dotnet run --project .\tests\PdfChecks\PdfChecks.csproj -c Release
 Copyright © 2026 OOXGN. Проект выпускается под **GNU Affero General Public License v3 (AGPL-3.0-only)**: [LICENSE](LICENSE). Исходники соответствующего выпуска доступны в этом репозитории и архиве исходного кода GitHub Releases.
 
 PDF обрабатывается библиотекой iText Community 9.4.0. Её авторские уведомления и Producer в PDF сохраняются. Зависимости и условия использования перечислены в [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). Autodesk AutoCAD является отдельным продуктом Autodesk и не поставляется с плагином.
-
