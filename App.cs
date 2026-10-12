@@ -26,7 +26,7 @@ namespace BotPlusAutocadTool
     public class App : IExtensionApplication
     {
         private const string RibbonTabId = "BOTPLUS_AUTOCAD_TOOL_TAB";
-        private const string RibbonTabTitle = "BotPlusAutocadTool";
+        private const string RibbonTabTitle = "BotPlus AT";
 
         private static ContextMenuExtension _contextMenu;
         private DateTime _nextUiCheckUtc;
@@ -121,7 +121,9 @@ namespace BotPlusAutocadTool
                 tab = new RibbonTab { Id = RibbonTabId, Name = RibbonTabTitle, Title = RibbonTabTitle };
                 ribbon.Tabs.Add(tab);
             }
-            else if (tab.Panels.Count > 0)
+            tab.Name = RibbonTabTitle;
+            tab.Title = RibbonTabTitle;
+            if (tab.Panels.Count > 0)
             {
                 return;
             }
@@ -162,6 +164,7 @@ namespace BotPlusAutocadTool
             tab.Panels.Add(releasePanel);
 
             AddButton(releasePanelSource, "Штамп", "stamp.png", "WEAM_STAMP");
+            AddButton(releasePanelSource, "Вставить\nформатку", "wplot.png", "BOTPLUS_INSERTFORMAT");
             AddButton(releasePanelSource, "Печать", "wplot.png", "WEAM_BATCHPLOT");
             AddButton(releasePanelSource, "Подготовить\nвсе блоки", "wplot.png", "WEAM_BLOCKS_STAGE1");
             AddButton(releasePanelSource, "Сформировать\nзаказчику", "dwgexport.png", "WEAM_CUSTOMERORDER");

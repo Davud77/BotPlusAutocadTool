@@ -23,6 +23,7 @@ foreach ($folder in @('2025-2026','2027')) {
     foreach ($name in @('accoremgd.dll','acdbmgd.dll','acmgd.dll','AdWindows.dll')) {
         if (Test-Path -LiteralPath (Join-Path $windows $name)) { throw "Autodesk assembly in bundle: $name" }
     }
+    if (!(Test-Path -LiteralPath (Join-Path $windows 'Assets\WM_FORMAT.dwg'))) { throw "Format template missing in bundle: $folder" }
 }
 & (Join-Path $PSScriptRoot 'Collect-Notices.ps1') -BundlePath $BundlePath
 $release = Join-Path $root 'artifacts\release'

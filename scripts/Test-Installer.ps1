@@ -22,6 +22,7 @@ function Run-TestInstall($logName, $executable = $InstallerPath) {
     if ($process.ExitCode -ne 0) { throw "Installer failed: $($process.ExitCode); $logPath" }
     foreach ($folder in @('2025-2026','2027')) {
         if (!(Test-Path -LiteralPath (Join-Path $installPath "Contents\Windows\$folder\BotPlusAutocadTool.dll"))) { throw "Missing installed DLL: $folder" }
+        if ($executable -eq $InstallerPath -and !(Test-Path -LiteralPath (Join-Path $installPath "Contents\Windows\$folder\Assets\WM_FORMAT.dwg"))) { throw "Missing installed format template: $folder" }
     }
     if (!(Test-Path -LiteralPath (Join-Path $installPath 'PackageContents.xml'))) { throw 'Manifest missing.' }
 }

@@ -48,7 +48,37 @@ public class Smoke
             }
             var commandCount = typeof(BotPlusAutocadTool.App).Assembly.GetTypes()
                 .SelectMany(type => type.GetMethods()).SelectMany(method => method.GetCustomAttributes(typeof(CommandMethodAttribute), false)).Count();
-            if (commandCount != 18) throw new InvalidOperationException("Missing commands: " + commandCount);
+            if (commandCount != 19) throw new InvalidOperationException("Missing commands: " + commandCount);
+            using (var library = new Database(false, true))
+            {
+                library.ReadDwgFile(FormatInsertService.TemplatePath, FileOpenMode.OpenForReadAndAllShare, true, null);
+                library.CloseInput(true);
+                using (var transaction = library.TransactionManager.StartTransaction())
+                {
+                    var table = (BlockTable)transaction.GetObject(library.BlockTableId, OpenMode.ForRead);
+                    editor.WriteMessage("\nFORMAT_SOURCE_NAMED_BLOCK: " + table.Has("WM_FORMAT") + "\n");
+                }
+            }
+            using (var formatDatabase = new Database(true, true))
+            {
+                var definitionId = FormatInsertService.EnsureDefinition(formatDatabase);
+                if (FormatInsertService.EnsureDefinition(formatDatabase) != definitionId) throw new InvalidOperationException("Definition duplicated");
+                var position = new Point3d(100, 200, 0);
+                var referenceId = FormatInsertService.Insert(formatDatabase, definitionId, position);
+                using (var transaction = formatDatabase.TransactionManager.StartTransaction())
+                {
+                    var definition = (BlockTableRecord)transaction.GetObject(definitionId, OpenMode.ForRead);
+                    var block = (BlockReference)transaction.GetObject(referenceId, OpenMode.ForRead);
+                    if (definition.Name != "WM_FORMAT" || block.Layer != "WM_FORMAT" || block.Position.DistanceTo(position) > 0.0001)
+                        throw new InvalidOperationException("Format name, layer or position incorrect");
+                    var attributes = definition.Cast<ObjectId>().Select(id => transaction.GetObject(id, OpenMode.ForRead))
+                        .OfType<AttributeDefinition>().Count(attribute => !attribute.Constant);
+                    if (block.AttributeCollection.Count != attributes) throw new InvalidOperationException("Format attributes lost");
+                    var extents = block.GeometricExtents;
+                    if ((extents.MaxPoint - extents.MinPoint).Length <= 0) throw new InvalidOperationException("Empty format geometry");
+                    editor.WriteMessage($"\nFORMAT_INSERT_PASS: WM_FORMAT, layer WM_FORMAT, attributes={attributes}, dynamic={definition.IsDynamicBlock}.\n");
+                }
+            }
             var stampService = new TestStampService();
             var stamp = new BotPlusAutocadTool.ViewModels.StampPropsViewModel(stampService);
             for (int length = 1; length <= 128; length++)
@@ -64,7 +94,7 @@ public class Smoke
                     if (stamp.НаименованиеОбъекта != value) throw new InvalidOperationException("Stamp round-trip failed at " + length);
                 }
             }
-            editor.WriteMessage("\nBOTPLUS_SMOKE_PASS: 18 commands, status length filters/geometry edits/empty selection, text reset, stamp round-trip 1-128.\n");
+            editor.WriteMessage("\nBOTPLUS_SMOKE_PASS: 19 commands, format import/insertion/attributes, status length, text reset, stamp round-trip.\n");
         }
         catch (System.Exception ex) { editor.WriteMessage("\nBOTPLUS_SMOKE_FAIL: " + ex + "\n"); }
     }
