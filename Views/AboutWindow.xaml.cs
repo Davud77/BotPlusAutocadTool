@@ -16,11 +16,23 @@ namespace BotPlusAutocadTool.Views
 {
     public partial class AboutWindow : Window
     {
+        private bool _settingsLoaded;
         public AboutWindow()
         {
             InitializeComponent();
             LoadVersion();
             LoadLogo();
+            AutoUpdateCheck.IsChecked = Services.SettingsService.Settings.AutoCheckUpdates;
+            PrereleaseUpdateCheck.IsChecked = Services.SettingsService.Settings.IncludePrereleaseUpdates;
+            _settingsLoaded = true;
+        }
+
+        private void UpdateSettingsChanged(object sender, RoutedEventArgs e)
+        {
+            if (!_settingsLoaded) return;
+            Services.SettingsService.Settings.AutoCheckUpdates = AutoUpdateCheck.IsChecked == true;
+            Services.SettingsService.Settings.IncludePrereleaseUpdates = PrereleaseUpdateCheck.IsChecked == true;
+            Services.SettingsService.Save();
         }
 
         private void LoadVersion()

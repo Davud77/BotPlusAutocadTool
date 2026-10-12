@@ -32,11 +32,15 @@ namespace BotPlusAutocadTool
 
         public void Initialize()
         {
+            Services.SelectionLengthService.Start();
+            Services.UpdateCheckService.Start();
             AcadApp.Idle += Application_Idle;
         }
 
         public void Terminate()
         {
+            Services.UpdateCheckService.Stop();
+            Services.SelectionLengthService.Stop();
             Services.DsdPublishService.Shutdown();
             AcadApp.Idle -= Application_Idle;
             if (_contextMenu != null)
@@ -162,6 +166,7 @@ namespace BotPlusAutocadTool
             tab.Panels.Add(helpPanel);
 
             AddButton(helpPanelSource, "Инфо", "info.png", "WEAM_INFO");
+            AddButton(helpPanelSource, "Проверить\nобновления", "info.png", "BOTPLUS_CHECKUPDATES");
         }
 
         private void AddButton(RibbonPanelSource source, string text, string iconName, string commandName)

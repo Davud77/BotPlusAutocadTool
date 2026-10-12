@@ -5,7 +5,9 @@
   #define ReleaseDir "..\artifacts\release"
 #endif
 #define ProjectDir ".."
-#define AppVersion "1.0.0"
+#ifndef AppVersion
+  #define AppVersion "1.1.0"
+#endif
 
 [Setup]
 AppId={{98BED5F2-3CAB-47DD-8344-E681FEA048DB}
@@ -15,15 +17,17 @@ AppPublisher=OOXGN
 AppPublisherURL=https://github.com/Davud77/BotPlusAutocadTool
 AppSupportURL=https://github.com/Davud77/BotPlusAutocadTool/issues
 AppUpdatesURL=https://github.com/Davud77/BotPlusAutocadTool/releases
-DefaultDirName={autopf}\Autodesk\ApplicationPlugins\BotPlusAutocadTool.bundle
+DefaultDirName={code:GetInstallDirectory}
+DisableDirPage=yes
+DisableWelcomePage=no
 DisableProgramGroupPage=yes
-UsePreviousAppDir=yes
+UsePreviousAppDir=no
 UninstallDisplayName=BotPlusAutocadTool (AutoCAD 2025–2027)
 UninstallDisplayIcon={uninstallexe}
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=admin
-PrivilegesRequiredOverridesAllowed=commandline
+PrivilegesRequiredOverridesAllowed=dialog
 LicenseFile={#ProjectDir}\LICENSE
 InfoBeforeFile={#ProjectDir}\installer\BeforeInstall.txt
 OutputDir={#ReleaseDir}
@@ -34,7 +38,7 @@ WizardStyle=modern
 CloseApplications=no
 RestartApplications=no
 SetupLogging=yes
-VersionInfoVersion=1.0.0.0
+VersionInfoVersion={#AppVersion}.0
 
 [Languages]
 Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
@@ -54,6 +58,14 @@ Source: "{#ProjectDir}\THIRD-PARTY-NOTICES.md"; DestDir: "{app}\Documentation"; 
 Source: "{#ProjectDir}\docs\VALIDATION.md"; DestDir: "{app}\Documentation"; Flags: ignoreversion
 
 [Code]
+function GetInstallDirectory(Param: String): String;
+begin
+  if IsAdminInstallMode then
+    Result := ExpandConstant('{commonpf}\Autodesk\ApplicationPlugins\BotPlusAutocadTool.bundle')
+  else
+    Result := ExpandConstant('{userappdata}\Autodesk\ApplicationPlugins\BotPlusAutocadTool.bundle');
+end;
+
 function AutoCADIsRunning(): Boolean;
 var Locator, Service, Processes: Variant;
 begin
