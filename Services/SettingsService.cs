@@ -7,7 +7,7 @@
 using System;
 using System.IO;
 using System.Reflection;
-using System.Text.Json;
+using Newtonsoft.Json;
 
 namespace BotPlusAutocadTool.Services
 {
@@ -17,12 +17,17 @@ namespace BotPlusAutocadTool.Services
     public static class SettingsService
     {
         private static readonly string SettingsPath;
-        private static PluginSettings _settings;
+        private static PluginSettings _settings = new PluginSettings();
 
         static SettingsService()
         {
-            SettingsPath = Path.Combine(PluginPaths.UserDataDirectory, "settings.json");
-            Load();
+            // Directory creation and serializer loading must not poison this type.
+            try
+            {
+                SettingsPath = Path.Combine(PluginPaths.UserDataDirectory, "settings.json");
+                Load();
+            }
+            catch { }
         }
 
         public static PluginSettings Settings => _settings;
@@ -36,7 +41,7 @@ namespace BotPlusAutocadTool.Services
                 if (File.Exists(loadPath))
                 {
                     var json = File.ReadAllText(loadPath);
-                    _settings = JsonSerializer.Deserialize<PluginSettings>(json) ?? new PluginSettings();
+                    _settings = JsonConvert.DeserializeObject<PluginSettings>(json) ?? new PluginSettings();
                 }
                 else
                 {
@@ -53,10 +58,15 @@ namespace BotPlusAutocadTool.Services
         {
             try
             {
-                var json = JsonSerializer.Serialize(_settings, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(SettingsPath, json);
+                if (SettingsPath != null) SaveCore();
             }
             catch { }
+        }
+
+        private static void SaveCore()
+        {
+            var json = JsonConvert.SerializeObject(_settings, Formatting.Indented);
+            File.WriteAllText(SettingsPath, json);
         }
     }
 

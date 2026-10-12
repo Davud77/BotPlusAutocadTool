@@ -1,7 +1,27 @@
 using BotPlusAutocadTool.Services;
-using System.Text.Json;
+using Newtonsoft.Json;
+using System.Diagnostics;
+using System.Reflection;
 
-var releases = JsonSerializer.Serialize(new[] {
+if (args.Length > 0)
+{
+    TestSettings(args[0]);
+    return;
+}
+foreach (var scenario in new[] { "valid", "malformed", "unavailable" })
+{
+    var start = new ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = false };
+    if (Path.GetFileNameWithoutExtension(Environment.ProcessPath) == "dotnet")
+        start.ArgumentList.Add(Assembly.GetExecutingAssembly().Location);
+    start.ArgumentList.Add(scenario);
+    using var child = Process.Start(start)!;
+    child.WaitForExit();
+    if (child.ExitCode != 0) throw new Exception("Settings regression: " + scenario);
+}
+if (Assembly.GetExecutingAssembly().GetReferencedAssemblies().Any(a => a.Name == "System.Text.Json"))
+    throw new Exception("Startup services still reference System.Text.Json");
+
+var releases = JsonConvert.SerializeObject(new[] {
     new {tag_name="v1.1.0",draft=false,prerelease=false,html_url="https://github.com/Davud77/BotPlusAutocadTool/releases/tag/v1.1.0"},
     new {tag_name="v1.2.0",draft=false,prerelease=false,html_url="https://github.com/Davud77/BotPlusAutocadTool/releases/tag/v1.2.0"},
     new {tag_name="v2.0.0-beta.1",draft=false,prerelease=true,html_url="https://github.com/Davud77/BotPlusAutocadTool/releases/tag/v2.0.0-beta.1"},
@@ -24,3 +44,47 @@ if (!schedule.IsDue(now.AddHours(24))) throw new Exception("Daily check missing"
 schedule.NewSession();
 if (!schedule.IsDue(now.AddMinutes(1))) throw new Exception("New AutoCAD session skipped check");
 Console.WriteLine("PASS: each startup and every 24 hours while open.");
+
+SettingsService.Settings.AutoCheckUpdates = false;
+UpdateCheckService.Start();
+UpdateCheckService.Start();
+if (Autodesk.AutoCAD.ApplicationServices.Application.SubscriberCount != 1) throw new Exception("Duplicate Idle subscription");
+typeof(UpdateCheckService).GetField("_pending", BindingFlags.NonPublic | BindingFlags.Static)!
+    .SetValue(null, Task.FromException<ReleaseVersion>(new HttpRequestException("Simulated offline GitHub")));
+Autodesk.AutoCAD.ApplicationServices.Application.RaiseIdle();
+if (Autodesk.AutoCAD.ApplicationServices.Application.SubscriberCount != 1) throw new Exception("Network error stopped daily checks");
+typeof(UpdateCheckService).GetField("_pending", BindingFlags.NonPublic | BindingFlags.Static)!
+    .SetValue(null, Task.FromResult<ReleaseVersion>(null!));
+Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.ThrowOnRead = true;
+Autodesk.AutoCAD.ApplicationServices.Application.RaiseIdle();
+Autodesk.AutoCAD.ApplicationServices.Application.RaiseIdle();
+if (Autodesk.AutoCAD.ApplicationServices.Application.SubscriberCount != 0) throw new Exception("Failed Idle handler remained attached");
+if (System.Windows.MessageBox.Shown != 0) throw new Exception("Background failure opened a modal dialog");
+Console.WriteLine("PASS: offline GitHub is contained; unexpected Idle failure unsubscribes without JIT dialogs.");
+
+static void TestSettings(string scenario)
+{
+    var root = PluginPaths.TestRoot;
+    if (scenario == "unavailable")
+    {
+        File.WriteAllText(root, "Directory creation must fail");
+    }
+    else
+    {
+        Directory.CreateDirectory(root);
+        File.WriteAllText(Path.Combine(root, "settings.json"), scenario == "malformed" ? "{broken" :
+            "{\"AutoCheckUpdates\":false,\"ScaleNumerator\":5,\"LastUpdateCheckUtc\":\"2026-10-12T12:00:00Z\",\"LastNotifiedUpdateTag\":\"v1.1.1\",\"FutureSetting\":true}");
+    }
+    var settings = SettingsService.Settings;
+    if (scenario == "valid")
+    {
+        if (settings.AutoCheckUpdates || settings.ScaleNumerator != 5 || settings.LastNotifiedUpdateTag != "v1.1.1" ||
+            settings.LastUpdateCheckUtc.Kind != DateTimeKind.Utc) throw new Exception("Legacy settings were lost");
+    }
+    else if (!settings.AutoCheckUpdates || settings.ScaleNumerator != 1) throw new Exception("Default settings missing");
+    settings.ScaleNumerator = 7;
+    SettingsService.Save();
+    if (scenario != "unavailable" && JsonConvert.DeserializeObject<PluginSettings>(File.ReadAllText(Path.Combine(root, "settings.json")))!.ScaleNumerator != 7)
+        throw new Exception("Settings save failed");
+    Console.WriteLine("PASS: settings " + scenario + ", defaults/save/legacy JSON compatibility.");
+}

@@ -17,7 +17,7 @@ if (!$BundlePath) {
 $BundlePath = (Resolve-Path -LiteralPath $BundlePath).Path
 foreach ($folder in @('2025-2026','2027')) {
     $windows = Join-Path $BundlePath "Contents\Windows\$folder"
-    foreach ($name in @('BotPlusAutocadTool.dll','ClosedXML.dll','itext.kernel.dll','itext.bouncy-castle-adapter.dll','BouncyCastle.Cryptography.dll')) {
+    foreach ($name in @('BotPlusAutocadTool.dll','Newtonsoft.Json.dll','ClosedXML.dll','itext.kernel.dll','itext.bouncy-castle-adapter.dll','BouncyCastle.Cryptography.dll')) {
         if (!(Test-Path -LiteralPath (Join-Path $windows $name))) { throw "Incomplete bundle: $folder/$name" }
     }
     foreach ($name in @('accoremgd.dll','acdbmgd.dll','acmgd.dll','AdWindows.dll')) {

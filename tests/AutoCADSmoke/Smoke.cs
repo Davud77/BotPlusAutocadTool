@@ -15,6 +15,14 @@ public class Smoke
         var editor = AcadApp.DocumentManager.MdiActiveDocument.Editor;
         try
         {
+            if (typeof(SettingsService).Assembly.GetName().Version != new Version(1, 2, 1, 0))
+                throw new InvalidOperationException("Unexpected plugin version loaded");
+            if (SettingsService.Settings == null) throw new InvalidOperationException("Settings initialization failed");
+            if (ReleaseVersion.FindUpdate("[]", new Version(1, 2, 1)) != null)
+                throw new InvalidOperationException("GitHub JSON parsing failed");
+            if (typeof(SettingsService).Assembly.GetReferencedAssemblies().Any(a => a.Name == "System.Text.Json"))
+                throw new InvalidOperationException("Plugin still directly references System.Text.Json");
+            editor.WriteMessage("\nPASS: settings and GitHub JSON; no direct System.Text.Json reference; CLR " + Environment.Version);
             using (var database = new Database(true, true))
             using (var transaction = database.TransactionManager.StartTransaction())
             {

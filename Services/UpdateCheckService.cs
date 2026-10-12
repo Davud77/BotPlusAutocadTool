@@ -20,12 +20,20 @@ namespace BotPlusAutocadTool.Services
 
         public static void Start()
         {
-            AcadApp.Idle -= OnIdle;
-            AcadApp.Idle += OnIdle;
-            var settings = SettingsService.Settings;
-            Schedule.NewSession();
-            // Every new AutoCAD session checks, even if another session checked today.
-            if (settings.AutoCheckUpdates) Check(false);
+            Stop();
+            try
+            {
+                var settings = SettingsService.Settings;
+                Schedule.NewSession();
+                // Every new AutoCAD session checks, even if another session checked today.
+                if (settings.AutoCheckUpdates) Check(false);
+                AcadApp.Idle += OnIdle;
+            }
+            catch
+            {
+                Stop();
+                throw;
+            }
         }
         public static void Check(bool manual)
         {
@@ -53,6 +61,16 @@ namespace BotPlusAutocadTool.Services
             }
         }
         private static void OnIdle(object sender, EventArgs e)
+        {
+            try { ProcessIdle(); }
+            catch (System.Exception ex)
+            {
+                // Unexpected host/startup failures must not repeat on every Idle.
+                Stop();
+                Trace.TraceError("BotPlus update service stopped: {0}", ex);
+            }
+        }
+        private static void ProcessIdle()
         {
             if (_pending == null && SettingsService.Settings.AutoCheckUpdates && Schedule.IsDue(DateTime.UtcNow))
                 Check(false);

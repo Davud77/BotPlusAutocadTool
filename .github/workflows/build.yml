@@ -28,6 +28,10 @@ jobs:
       - name: Check PDF processing
         shell: pwsh
         run: dotnet run --project ./tests/PdfChecks/PdfChecks.csproj -c Release
-      - name: Check update selection
+      - name: Check settings and updates on both runtimes
         shell: pwsh
-        run: dotnet run --project ./tests/UpdateChecks/UpdateChecks.csproj -c Release
+        run: |
+          foreach ($framework in @('net8.0','net10.0')) {
+            dotnet run --project ./tests/UpdateChecks/UpdateChecks.csproj -c Release -f $framework
+            if ($LASTEXITCODE -ne 0) { throw "Regression checks failed: $framework" }
+          }
