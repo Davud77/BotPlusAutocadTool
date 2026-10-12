@@ -26,12 +26,29 @@ public class Smoke
                 var result = new LengthService().CalculateLengths(transaction, new[] { id });
                 var length = result.SelectMany(group => group.Items).Sum(item => item.RawLength);
                 if (Math.Abs(length - 500) > 0.0001) throw new InvalidOperationException("Length calculation failed");
+                var arc = new Arc(Point3d.Origin, Vector3d.ZAxis, 100, 0, Math.PI / 2);
+                var arcId = model.AppendEntity(arc); transaction.AddNewlyCreatedDBObject(arc, true);
+                var circle = new Circle(Point3d.Origin, Vector3d.ZAxis, 100);
+                var circleId = model.AppendEntity(circle); transaction.AddNewlyCreatedDBObject(circle, true);
+                var polyline = new Polyline();
+                polyline.AddVertexAt(0, new Point2d(0, 0), 0, 0, 0);
+                polyline.AddVertexAt(1, new Point2d(100, 0), 0, 0, 0);
+                var polylineId = model.AppendEntity(polyline); transaction.AddNewlyCreatedDBObject(polyline, true);
+                var ids = new[] { id, arcId, circleId, polylineId };
+                var expected = 600 + Math.PI * 50;
+                if (Math.Abs(SelectionLengthService.Calculate(transaction, ids) - expected) > 0.0001)
+                    throw new InvalidOperationException("Status length filter/sum failed");
+                line.EndPoint = new Point3d(600, 800, 0);
+                if (Math.Abs(SelectionLengthService.Calculate(transaction, ids) - (expected + 500)) > 0.0001)
+                    throw new InvalidOperationException("Status length did not reflect geometry edits");
+                if (SelectionLengthService.Calculate(transaction, Array.Empty<ObjectId>()) != 0)
+                    throw new InvalidOperationException("Empty status selection failed");
                 var text = new StripTextService(new StripTextOptions());
                 if (text.StripMtextFormatting("{\\C1;Test}").Contains("\\C1;")) throw new InvalidOperationException("Text reset failed");
             }
             var commandCount = typeof(BotPlusAutocadTool.App).Assembly.GetTypes()
                 .SelectMany(type => type.GetMethods()).SelectMany(method => method.GetCustomAttributes(typeof(CommandMethodAttribute), false)).Count();
-            if (commandCount != 17) throw new InvalidOperationException("Missing commands: " + commandCount);
+            if (commandCount != 18) throw new InvalidOperationException("Missing commands: " + commandCount);
             var stampService = new TestStampService();
             var stamp = new BotPlusAutocadTool.ViewModels.StampPropsViewModel(stampService);
             for (int length = 1; length <= 128; length++)
@@ -47,7 +64,7 @@ public class Smoke
                     if (stamp.НаименованиеОбъекта != value) throw new InvalidOperationException("Stamp round-trip failed at " + length);
                 }
             }
-            editor.WriteMessage("\nBOTPLUS_SMOKE_PASS: plugin loaded, 17 commands, length 500, text reset, stamp round-trip 1-128 characters.\n");
+            editor.WriteMessage("\nBOTPLUS_SMOKE_PASS: 18 commands, status length filters/geometry edits/empty selection, text reset, stamp round-trip 1-128.\n");
         }
         catch (System.Exception ex) { editor.WriteMessage("\nBOTPLUS_SMOKE_FAIL: " + ex + "\n"); }
     }

@@ -4,7 +4,7 @@ $sourceFiles = Get-ChildItem -LiteralPath $root -Recurse -File | Where-Object { 
 $commands = foreach ($file in $sourceFiles | Where-Object Extension -eq '.cs') {
     foreach ($match in [regex]::Matches([IO.File]::ReadAllText($file.FullName), 'CommandMethod\("([^"]+)"')) { $match.Groups[1].Value }
 }
-$expected = @('Align_Den','AUTONUM','НУМ','WSELECT','SUMLENGTH','MULTICOPY','PLANPREP','CLEANDWG','CLEANUNSELECTED','STRIPTEXT','WEAM_STAMP','WEAM_BATCHPLOT','WPLOT','WEAM_CUSTOMERORDER','WEAM_TABLEEXCEL','WEAM_BLOCKS_STAGE1','WEAM_INFO')
+$expected = @('Align_Den','AUTONUM','НУМ','WSELECT','SUMLENGTH','MULTICOPY','PLANPREP','CLEANDWG','CLEANUNSELECTED','STRIPTEXT','WEAM_STAMP','WEAM_BATCHPLOT','WPLOT','WEAM_CUSTOMERORDER','WEAM_TABLEEXCEL','WEAM_BLOCKS_STAGE1','WEAM_INFO','BOTPLUS_CHECKUPDATES')
 if (@($expected | Where-Object { $_ -notin $commands }).Count -or @($commands | Group-Object | Where-Object Count -gt 1).Count) { throw 'Missing or duplicate commands.' }
 $xmlFiles = Get-ChildItem -LiteralPath $root -Recurse -File | Where-Object { $_.Extension -in '.xaml','.xml','.csproj','.props' -and $_.FullName -notmatch '\\(bin|obj|artifacts|tests)\\' }
 foreach ($file in $xmlFiles) { $null = [xml][IO.File]::ReadAllText($file.FullName) }

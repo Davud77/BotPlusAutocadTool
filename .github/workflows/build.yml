@@ -28,3 +28,6 @@ jobs:
       - name: Check PDF processing
         shell: pwsh
         run: dotnet run --project ./tests/PdfChecks/PdfChecks.csproj -c Release
+      - name: Check update selection
+        shell: pwsh
+        run: dotnet run --project ./tests/UpdateChecks/UpdateChecks.csproj -c Release

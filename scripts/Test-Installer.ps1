@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][string]$InstallerPath)
+param([Parameter(Mandatory=$true)][string]$InstallerPath, [string]$PreviousInstallerPath)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $testRoot = Join-Path $root ('artifacts\installer-test\' + [Guid]::NewGuid().ToString('N'))
@@ -13,17 +13,18 @@ function Get-SettingsSnapshot {
     return ((Get-ChildItem -LiteralPath $userData -File -Recurse | Sort-Object FullName | ForEach-Object { $_.FullName + '|' + (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash }) -join "`n")
 }
 $settingsBefore = Get-SettingsSnapshot
-function Run-TestInstall($logName) {
+function Run-TestInstall($logName, $executable = $InstallerPath) {
     $logPath = Join-Path $testRoot $logName
     $arguments = @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-','/CURRENTUSER',('/DIR="'+$installPath+'"'),('/LOG="'+$logPath+'"'))
-    $process = Start-Process -FilePath $InstallerPath -ArgumentList $arguments -WindowStyle Hidden -PassThru -Wait
+    $process = Start-Process -FilePath $executable -ArgumentList $arguments -WindowStyle Hidden -PassThru -Wait
     if ($process.ExitCode -ne 0) { throw "Installer failed: $($process.ExitCode); $logPath" }
     foreach ($folder in @('2025-2026','2027')) {
         if (!(Test-Path -LiteralPath (Join-Path $installPath "Contents\Windows\$folder\BotPlusAutocadTool.dll"))) { throw "Missing installed DLL: $folder" }
     }
     if (!(Test-Path -LiteralPath (Join-Path $installPath 'PackageContents.xml'))) { throw 'Manifest missing.' }
 }
-Run-TestInstall 'install.log'
+if ($PreviousInstallerPath) { Run-TestInstall 'previous-install.log' $PreviousInstallerPath }
+else { Run-TestInstall 'install.log' }
 # A controlled obsolete library verifies cleanup during upgrade.
 $obsolete = Join-Path $installPath 'Contents\Windows\2027\obsolete-test.dll'
 'test-only obsolete dependency' | Set-Content -LiteralPath $obsolete
