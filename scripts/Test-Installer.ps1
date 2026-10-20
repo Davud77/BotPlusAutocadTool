@@ -23,8 +23,22 @@ function Run-TestInstall($logName, $executable = $InstallerPath) {
     foreach ($folder in @('2025-2026','2027')) {
         if (!(Test-Path -LiteralPath (Join-Path $installPath "Contents\Windows\$folder\BotPlusAutocadTool.dll"))) { throw "Missing installed DLL: $folder" }
         if ($executable -eq $InstallerPath -and !(Test-Path -LiteralPath (Join-Path $installPath "Contents\Windows\$folder\Assets\WM_FORMAT.dwg"))) { throw "Missing installed format template: $folder" }
+        if ($executable -eq $InstallerPath) {
+            foreach ($dependency in @('BotPlusAutocadTool.ExcelRuntime.dll','ClosedXML.dll','DocumentFormat.OpenXml.dll')) {
+                if (!(Test-Path -LiteralPath (Join-Path $installPath "Contents\Windows\$folder\ExcelRuntime\$dependency"))) { throw "Missing isolated XLSX dependency: $folder/$dependency" }
+            }
+        }
     }
     if (!(Test-Path -LiteralPath (Join-Path $installPath 'PackageContents.xml'))) { throw 'Manifest missing.' }
+    $installedManifest = [xml](Get-Content -LiteralPath (Join-Path $installPath 'PackageContents.xml') -Raw)
+    foreach ($folder in @('2025-2026','2027')) {
+        $dllPath = Join-Path $installPath "Contents\Windows\$folder\BotPlusAutocadTool.dll"
+        $dllVersion = [Diagnostics.FileVersionInfo]::GetVersionInfo($dllPath).ProductVersion.Split('+')[0]
+        if ($dllVersion -ne $installedManifest.ApplicationPackage.AppVersion) { throw 'Installed DLL and manifest versions differ.' }
+    }
+    if ($executable -eq $InstallerPath -and !(Test-Path -LiteralPath (Join-Path $installPath 'Documentation\docs\USAGE-1.3.1.md'))) {
+        throw 'Candidate documentation missing.'
+    }
 }
 if ($PreviousInstallerPath) { Run-TestInstall 'previous-install.log' $PreviousInstallerPath }
 else { Run-TestInstall 'install.log' }

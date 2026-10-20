@@ -1,0 +1,70 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+using System;
+using System.IO;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using BotPlusAutocadTool.Services;
+using Newtonsoft.Json;
+
+namespace BotPlusAutocadTool.Views
+{
+    public partial class SettingsWindow : Window
+    {
+        public sealed class EditableSettings : PluginSettings
+        {
+            public int PlotScaleIndex { get => PlotScale == 100 ? 1 : 0; set => PlotScale = value == 1 ? 100 : 1; }
+        }
+        public SettingsWindow()
+        {
+            InitializeComponent();
+            DataContext = JsonConvert.DeserializeObject<EditableSettings>(JsonConvert.SerializeObject(SettingsService.Settings));
+        }
+        private void ResetClick(object sender, RoutedEventArgs e) => DataContext = new EditableSettings();
+        private void BrowseOutputClick(object sender, RoutedEventArgs e)
+        {
+            var edited = (EditableSettings)DataContext;
+            string folder = UI.FolderPicker.Choose(edited.PlotOutputDirectory, this);
+            if (folder != null)
+            {
+                edited.PlotOutputDirectory = folder;
+                OutputFolderBox.SetCurrentValue(TextBox.TextProperty, folder);
+                OutputFolderBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+            }
+        }
+        private static bool HasErrors(DependencyObject parent)
+        {
+            if (Validation.GetHasError(parent)) return true;
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+                if (HasErrors(VisualTreeHelper.GetChild(parent, i))) return true;
+            return false;
+        }
+        private void SaveClick(object sender, RoutedEventArgs e)
+        {
+            var edited = (EditableSettings)DataContext;
+            if (HasErrors(this) || !double.IsFinite(edited.FrameInsertionScale) || edited.FrameInsertionScale <= 0 || edited.FrameInsertionScale > 1000000 || edited.ScaleNumerator < 1 || edited.ScaleDenominator < 1)
+            {
+                MessageBox.Show(this, "Проверьте числа. Масштабы должны быть положительными; масштаб вставки — не больше 1000000.", Title); return;
+            }
+            if (!string.IsNullOrWhiteSpace(edited.PlotOutputDirectory) && !Path.IsPathFullyQualified(edited.PlotOutputDirectory))
+            {
+                MessageBox.Show(this, "Укажите полный путь к папке PDF или оставьте поле пустым.", Title); return;
+            }
+            var settings = SettingsService.Settings;
+            settings.FrameInsertionScale = edited.FrameInsertionScale;
+            settings.PlotScale = edited.PlotScale;
+            settings.PlotOutputDirectory = edited.PlotOutputDirectory?.Trim() ?? "";
+            settings.PlotInBackground = edited.PlotInBackground;
+            settings.OpenFolderAfterPlot = edited.OpenFolderAfterPlot;
+            settings.OpenFileAfterPlot = edited.OpenFileAfterPlot;
+            settings.ScaleNumerator = edited.ScaleNumerator; settings.ScaleDenominator = edited.ScaleDenominator;
+            settings.LengthUnit = edited.LengthUnit; settings.AreaUnit = edited.AreaUnit;
+            settings.AutoCheckUpdates = edited.AutoCheckUpdates; settings.IncludePrereleaseUpdates = edited.IncludePrereleaseUpdates;
+            if (!SettingsService.TrySave())
+            {
+                MessageBox.Show(this, "Не удалось сохранить настройки. Проверьте доступ к папке данных пользователя; подробности записаны в журнал.", Title); return;
+            }
+            DialogResult = true;
+        }
+    }
+}

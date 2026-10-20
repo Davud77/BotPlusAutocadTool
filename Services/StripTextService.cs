@@ -6,7 +6,7 @@
 
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
-using System.Text.RegularExpressions;
+using System;
 using BotPlusAutocadTool.Models;
 
 namespace BotPlusAutocadTool.Services
@@ -17,7 +17,7 @@ namespace BotPlusAutocadTool.Services
 
         public StripTextService(StripTextOptions options)
         {
-            _options = options;
+            _options = options ?? throw new ArgumentNullException(nameof(options));
         }
 
         // ИСПРАВЛЕНО: Проверка наличия полей (Fields) у объекта
@@ -63,90 +63,8 @@ namespace BotPlusAutocadTool.Services
             return false;
         }
 
-        public string StripMtextFormatting(string input)
-        {
-            if (string.IsNullOrEmpty(input)) return input;
-            string text = input;
+        public string StripMtextFormatting(string input) => MTextFormatting.Strip(input, _options);
 
-            // 1. Alignment
-            if (_options.Alignment)
-                text = Regex.Replace(text, @"\\A[0-2];", "", RegexOptions.IgnoreCase);
-
-            // 2. Tabs
-            if (_options.Tabs)
-            {
-                text = Regex.Replace(text, @"\\P\t|[0-9]+;\t", "", RegexOptions.IgnoreCase);
-                text = text.Replace("\t", " ");
-            }
-
-            // 3. Color
-            if (_options.Color)
-                text = Regex.Replace(text, @"\\[Cc][0-9]?[.]?[0-9]+;", "", RegexOptions.IgnoreCase);
-
-            // 4. Font
-            if (_options.Font)
-                text = Regex.Replace(text, @"\\[Ff].*?;", "", RegexOptions.IgnoreCase);
-
-            // 5. Height
-            if (_options.Height)
-            {
-                text = Regex.Replace(text, @"\\H[0-9]*?[.]?[0-9]*?(x|X)+;", "", RegexOptions.IgnoreCase);
-                text = Regex.Replace(text, @"\\H[0-9]*?[.]?[0-9]+;", "", RegexOptions.IgnoreCase);
-            }
-
-            // 6. Oblique
-            if (_options.Oblique)
-                text = Regex.Replace(text, @"\\Q[-]?[0-9]*?[.]?[0-9]+;", "", RegexOptions.IgnoreCase);
-
-            // 7. Width
-            if (_options.Width)
-                text = Regex.Replace(text, @"\\W[0-9]?[.]?[0-9]+;", "", RegexOptions.IgnoreCase);
-
-            // 8. Tracking
-            if (_options.Tracking)
-                text = Regex.Replace(text, @"\\T[0-9]?[.]?[0-9]+;", "", RegexOptions.IgnoreCase);
-
-            // 9. Underline
-            if (_options.Underline)
-                text = Regex.Replace(text, @"\\[Ll]", "");
-
-            // 10. Overline
-            if (_options.Overline)
-                text = Regex.Replace(text, @"\\[Oo]", "");
-
-            // 11. Paragraph
-            if (_options.Paragraph)
-                text = Regex.Replace(text, @"\\p.*?;", "", RegexOptions.IgnoreCase);
-
-            // 12. Stacking
-            if (_options.Stacking)
-            {
-                text = Regex.Replace(text, @"\\S(.*?);", m =>
-                {
-                    string content = m.Groups[1].Value;
-                    content = content.Replace("^", " ");
-                    content = content.Replace("#", "/");
-                    return content;
-                }, RegexOptions.IgnoreCase);
-            }
-
-            // 13. Non-breaking space
-            if (_options.NonBreakingSpace)
-                text = text.Replace(@"\~", " ");
-
-            // 14. Braces
-            if (_options.Font || _options.Color || _options.Height)
-                text = Regex.Replace(text, @"[{}]", "");
-
-            // 15. Linefeed
-            if (_options.LineFeed)
-                text = text.Replace(@"\P", "\n");
-
-            text = text.Replace(@"\\", @"\");
-            return text;
-        }
-
-        // --- MText ---
         public void ProcessMText(MText mtext)
         {
             if (mtext == null) return;
@@ -201,13 +119,13 @@ namespace BotPlusAutocadTool.Services
 
             if (_options.Underline && (content.Contains("%%u") || content.Contains("%%U")))
             {
-                content = Regex.Replace(content, "%%[uU]", "");
+                content = content.Replace("%%u", "", StringComparison.OrdinalIgnoreCase);
                 changed = true;
             }
 
             if (_options.Overline && (content.Contains("%%o") || content.Contains("%%O")))
             {
-                content = Regex.Replace(content, "%%[oO]", "");
+                content = content.Replace("%%o", "", StringComparison.OrdinalIgnoreCase);
                 changed = true;
             }
 

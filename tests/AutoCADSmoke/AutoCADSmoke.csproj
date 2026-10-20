@@ -5,6 +5,10 @@
     <TargetFramework Condition="'$(AutoCADVersion)' == '2026'">net8.0-windows</TargetFramework>
     <PlatformTarget>x64</PlatformTarget><UseWPF>true</UseWPF><UseWindowsForms>true</UseWindowsForms><ImplicitUsings>disable</ImplicitUsings><Nullable>disable</Nullable>
   </PropertyGroup>
+  <ItemGroup Condition="'$(AutoCADVersion)' == '2026'">
+    <!-- Match the transitive host/iText references during compilation of the test module. -->
+    <PackageReference Include="System.Text.Json" Version="9.0.4" />
+  </ItemGroup>
   <ItemGroup>
     <Reference Include="BotPlusAutocadTool"><HintPath>..\..\bin\Release\AutoCAD$(AutoCADVersion)\$(TargetFramework)\BotPlusAutocadTool.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="AcCoreMgd"><HintPath>C:\Program Files\Autodesk\AutoCAD $(AutoCADVersion)\accoremgd.dll</HintPath><Private>false</Private></Reference>

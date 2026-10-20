@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+using System;
+using System.IO;
+using System.Text;
+
+namespace BotPlusAutocadTool.Infrastructure
+{
+    internal static class AtomicFile
+    {
+        public static void WriteAllText(string path, string content)
+        {
+            var fullPath = Path.GetFullPath(path);
+            Directory.CreateDirectory(Path.GetDirectoryName(fullPath));
+            var temporary = fullPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            try
+            {
+                using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                {
+                    var bytes = new UTF8Encoding(false).GetBytes(content);
+                    stream.Write(bytes, 0, bytes.Length);
+                    stream.Flush(flushToDisk: true);
+                }
+                File.Move(temporary, fullPath, overwrite: true);
+            }
+            finally
+            {
+                if (File.Exists(temporary)) File.Delete(temporary);
+            }
+        }
+    }
+}

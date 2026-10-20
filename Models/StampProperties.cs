@@ -22,7 +22,7 @@ namespace BotPlusAutocadTool.Models
 
         public string GetValue(string key)
         {
-            return Properties.TryGetValue(key, out string value) ? value : string.Empty;
+            return Properties.TryGetValue(key, out string value) && !string.IsNullOrWhiteSpace(value) ? value : " ";
         }
 
         public void SetValue(string key, string value)

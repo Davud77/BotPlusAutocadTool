@@ -3,12 +3,17 @@ using Newtonsoft.Json;
 using System.Diagnostics;
 using System.Reflection;
 
+if (args.Length > 0 && args[0] == "--live")
+{
+    await UpdateFlowChecks.Live(args[1]);
+    return;
+}
 if (args.Length > 0)
 {
     TestSettings(args[0]);
     return;
 }
-foreach (var scenario in new[] { "valid", "malformed", "unavailable" })
+foreach (var scenario in new[] { "valid", "malformed", "unavailable", "invalid-values" })
 {
     var start = new ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = false };
     if (Path.GetFileNameWithoutExtension(Environment.ProcessPath) == "dotnet")
@@ -61,6 +66,8 @@ Autodesk.AutoCAD.ApplicationServices.Application.RaiseIdle();
 if (Autodesk.AutoCAD.ApplicationServices.Application.SubscriberCount != 0) throw new Exception("Failed Idle handler remained attached");
 if (System.Windows.MessageBox.Shown != 0) throw new Exception("Background failure opened a modal dialog");
 Console.WriteLine("PASS: offline GitHub is contained; unexpected Idle failure unsubscribes without JIT dialogs.");
+Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.ThrowOnRead = false;
+UpdateFlowChecks.Run();
 
 static void TestSettings(string scenario)
 {
@@ -72,7 +79,8 @@ static void TestSettings(string scenario)
     else
     {
         Directory.CreateDirectory(root);
-        File.WriteAllText(Path.Combine(root, "settings.json"), scenario == "malformed" ? "{broken" :
+        File.WriteAllText(Path.Combine(root, "settings.json"), scenario == "malformed" ? "{broken" : scenario == "invalid-values" ?
+            "{\"ScaleNumerator\":0,\"ScaleDenominator\":-2,\"LengthUnit\":99,\"AreaUnit\":-1}" :
             "{\"AutoCheckUpdates\":false,\"ScaleNumerator\":5,\"LastUpdateCheckUtc\":\"2026-10-12T12:00:00Z\",\"LastNotifiedUpdateTag\":\"v1.1.1\",\"FutureSetting\":true}");
     }
     var settings = SettingsService.Settings;
@@ -82,9 +90,16 @@ static void TestSettings(string scenario)
             settings.LastUpdateCheckUtc.Kind != DateTimeKind.Utc) throw new Exception("Legacy settings were lost");
     }
     else if (!settings.AutoCheckUpdates || settings.ScaleNumerator != 1) throw new Exception("Default settings missing");
+    if (scenario == "invalid-values" && (settings.ScaleDenominator != 1 || settings.LengthUnit != 0 || settings.AreaUnit != 0))
+        throw new Exception("Invalid persisted settings were not normalized");
     settings.ScaleNumerator = 7;
+    if (settings.OpenFolderAfterPlot || settings.OpenFileAfterPlot) throw new Exception("New post-print actions changed legacy defaults");
+    settings.OpenFolderAfterPlot = true; settings.OpenFileAfterPlot = true;
     SettingsService.Save();
-    if (scenario != "unavailable" && JsonConvert.DeserializeObject<PluginSettings>(File.ReadAllText(Path.Combine(root, "settings.json")))!.ScaleNumerator != 7)
-        throw new Exception("Settings save failed");
+    if (scenario != "unavailable")
+    {
+        var restored = JsonConvert.DeserializeObject<PluginSettings>(File.ReadAllText(Path.Combine(root, "settings.json")))!;
+        if (restored.ScaleNumerator != 7 || !restored.OpenFolderAfterPlot || !restored.OpenFileAfterPlot) throw new Exception("Settings save failed");
+    }
     Console.WriteLine("PASS: settings " + scenario + ", defaults/save/legacy JSON compatibility.");
 }

@@ -30,6 +30,12 @@ namespace BotPlusAutocadTool.Services
             _ed = doc.Editor;
         }
 
+        internal CleanDwgService(CleanDwgOptions options, Database database, Transaction transaction)
+        {
+            _options = options;
+            _db = database;
+            _tr = transaction;
+        }
         public void Process()
         {
             int count = 0;
@@ -102,7 +108,7 @@ namespace BotPlusAutocadTool.Services
                     }
                 }
             }
-            if (deleted > 0) _ed.WriteMessage($"\nУдалено визуальных объектов: {deleted}");
+            if (deleted > 0) _ed?.WriteMessage($"\nУдалено визуальных объектов: {deleted}");
             return deleted;
         }
 
@@ -116,7 +122,7 @@ namespace BotPlusAutocadTool.Services
                 grp.Erase();
                 deleted++;
             }
-            if (deleted > 0) _ed.WriteMessage($"\nУдалено групп: {deleted}");
+            if (deleted > 0) _ed?.WriteMessage($"\nУдалено групп: {deleted}");
             return deleted;
         }
 
@@ -149,7 +155,7 @@ namespace BotPlusAutocadTool.Services
                     if (nod.Contains(name))
                     {
                         nod.Remove(name);
-                        _ed.WriteMessage($"\nУдален словарь фильтров: {name}");
+                        _ed?.WriteMessage($"\nУдален словарь фильтров: {name}");
                     }
                 }
             }
@@ -165,7 +171,7 @@ namespace BotPlusAutocadTool.Services
                 ps.Erase();
                 deleted++;
             }
-            if (deleted > 0) _ed.WriteMessage($"\nУдалено настроек печати: {deleted}");
+            if (deleted > 0) _ed?.WriteMessage($"\nУдалено настроек печати: {deleted}");
         }
 
         private void CleanRegApps()
@@ -186,7 +192,7 @@ namespace BotPlusAutocadTool.Services
                 }
                 catch { }
             }
-            if (deleted > 0) _ed.WriteMessage($"\nУдалено RegApps: {deleted}");
+            if (deleted > 0) _ed?.WriteMessage($"\nУдалено RegApps: {deleted}");
         }
 
         private void CleanScaleList()
@@ -195,7 +201,7 @@ namespace BotPlusAutocadTool.Services
             if (nod.Contains("ACAD_SCALELIST"))
             {
                 nod.Remove("ACAD_SCALELIST");
-                _ed.WriteMessage("\nСброшен список масштабов (Annotation Scales).");
+                _ed?.WriteMessage("\nСброшен список масштабов (Annotation Scales).");
             }
         }
 
@@ -206,13 +212,13 @@ namespace BotPlusAutocadTool.Services
             if (_options.VbaMacros && nod.Contains("ACAD_VBA"))
             {
                 nod.Remove("ACAD_VBA");
-                _ed.WriteMessage("\nУдалены VBA макросы.");
+                _ed?.WriteMessage("\nУдалены VBA макросы.");
             }
 
             if (_options.DgnLineStyles && nod.Contains("ACAD_DGNLINESTYLECOMP"))
             {
                 nod.Remove("ACAD_DGNLINESTYLECOMP");
-                _ed.WriteMessage("\nУдалены стили линий DGN.");
+                _ed?.WriteMessage("\nУдалены стили линий DGN.");
             }
 
             if (_options.Dictionaries)
@@ -225,7 +231,7 @@ namespace BotPlusAutocadTool.Services
                     try
                     {
                         nod.Remove(entry.Key);
-                        _ed.WriteMessage($"\nУдален словарь: {entry.Key}");
+                        _ed?.WriteMessage($"\nУдален словарь: {entry.Key}");
                     }
                     catch { }
                 }
@@ -267,7 +273,7 @@ namespace BotPlusAutocadTool.Services
                     }
                 }
             }
-            if (histDel > 0) _ed.WriteMessage($"\nОтключена история у {histDel} тел.");
+            if (histDel > 0) _ed?.WriteMessage($"\nОтключена история у {histDel} тел.");
         }
     }
 }

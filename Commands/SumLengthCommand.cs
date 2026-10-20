@@ -14,6 +14,8 @@ namespace BotPlusAutocadTool.Commands
     {
         private static SumLengthWindow _window;
 
+        public static void CloseWindow() => _window?.Close();
+
         [CommandMethod("SUMLENGTH")]
         public void ShowWindow()
         {
@@ -36,7 +38,7 @@ namespace BotPlusAutocadTool.Commands
             // Обнуляем ссылку при закрытии
             _window.Closed += (s, e) => _window = null;
 
-            _window.Show();
+            Autodesk.AutoCAD.ApplicationServices.Application.ShowModelessWindow(_window);
         }
     }
 }

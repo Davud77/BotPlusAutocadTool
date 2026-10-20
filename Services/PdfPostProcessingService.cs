@@ -44,13 +44,13 @@ namespace BotPlusAutocadTool.Services
         {
             if (string.IsNullOrWhiteSpace(pdfPath) || !File.Exists(pdfPath))
             {
-                ed?.WriteMessage($"\n[WEAM Error] PDF файл не найден: {pdfPath}\n");
+                ed?.WriteMessage($"\n[BotPlus AT] PDF файл не найден: {pdfPath}\n");
                 return false;
             }
 
             if (itemsInDsdOrder == null || itemsInDsdOrder.Count == 0)
             {
-                ed?.WriteMessage("\n[WEAM Warning] Нет листов для постобработки.\n");
+                ed?.WriteMessage("\n[BotPlus AT] Нет листов для постобработки.\n");
                 return false;
             }
 
@@ -91,12 +91,12 @@ namespace BotPlusAutocadTool.Services
                 // заменить исходный файл на обработанный
                 File.Move(tempPdfPath, pdfPath, overwrite: true);
 
-                ed?.WriteMessage($"\n[WEAM] ✓ PDF постобработан: {IOPath.GetFileName(pdfPath)}\n");
+                ed?.WriteMessage($"\n[BotPlus AT] ✓ PDF постобработан: {IOPath.GetFileName(pdfPath)}\n");
                 return true;
             }
             catch (System.Exception ex)
             {
-                ed?.WriteMessage($"\n[WEAM Error] Ошибка постобработки PDF: {ex.Message}\n");
+                ed?.WriteMessage($"\n[BotPlus AT] Ошибка постобработки PDF: {ex.Message}\n");
                 try { if (File.Exists(tempPdfPath)) File.Delete(tempPdfPath); } catch { }
                 return false;
             }
@@ -198,6 +198,7 @@ namespace BotPlusAutocadTool.Services
         {
             if (!separateSheets)
             {
+                outputPath = Path.GetFullPath(outputPath);
                 Directory.CreateDirectory(Path.GetDirectoryName(outputPath));
                 var temporary = outputPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
                 try { File.Copy(sourcePath, temporary); File.Move(temporary, outputPath, overwrite: true); }
@@ -210,9 +211,7 @@ namespace BotPlusAutocadTool.Services
                 if (source.GetNumberOfPages() != items.Count) throw new InvalidDataException("Неверное количество листов PDF.");
                 for (int i = 0; i < items.Count; i++)
                 {
-                    string number = items[i].SheetNumber ?? (i + 1).ToString();
-                    foreach (var invalid in Path.GetInvalidFileNameChars()) number = number.Replace(invalid, '_');
-                    string destination = Path.Combine(outputPath, $"{i + 1:D3}_Лист_{number}.pdf");
+                    string destination = Path.Combine(outputPath, PdfOutputPaths.SheetFileName(i, items[i].SheetNumber));
                     string temporary = destination + "." + Guid.NewGuid().ToString("N") + ".tmp";
                     try
                     {

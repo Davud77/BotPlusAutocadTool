@@ -41,7 +41,7 @@ namespace BotPlusAutocadTool.Services
             }
             catch (System.Exception ex)
             {
-                doc.Editor.WriteMessage($"\n[WEAM Error] Ошибка загрузки свойств: {ex.Message}\n");
+                doc.Editor.WriteMessage($"\n[BotPlus AT] Ошибка загрузки свойств: {ex.Message}\n");
             }
             return properties;
         }
@@ -65,7 +65,7 @@ namespace BotPlusAutocadTool.Services
                     foreach (var kvp in properties.Properties)
                     {
                         string key = kvp.Key;
-                        string newValue = kvp.Value ?? " "; // Заменяем null на пробел, чтобы поля не слетали
+                        string newValue = string.IsNullOrWhiteSpace(kvp.Value) ? " " : kvp.Value;
 
                         if (string.IsNullOrWhiteSpace(key)) continue;
 
@@ -91,19 +91,20 @@ namespace BotPlusAutocadTool.Services
                     {
                         // Применяем изменения
                         db.SummaryInfo = infoBuilder.ToDatabaseSummaryInfo();
+                        db.EvaluateFields(FieldEvaluationContext.Demand);
 
                         // Регенерация, чтобы поля (Fields) обновились визуально
                         doc.Editor.Regen();
-                        doc.Editor.WriteMessage($"\n[WEAM] Штамп обновлен. Изменено полей: {changesCount}.\n");
+                        doc.Editor.WriteMessage($"\n[BotPlus AT] Штамп обновлен. Изменено полей: {changesCount}.\n");
                     }
                     else
                     {
-                        doc.Editor.WriteMessage("\n[WEAM] Изменений нет.\n");
+                        doc.Editor.WriteMessage("\n[BotPlus AT] Изменений нет.\n");
                     }
                 }
                 catch (System.Exception ex)
                 {
-                    doc.Editor.WriteMessage($"\n[WEAM Error] Ошибка сохранения штампа: {ex.Message}\n");
+                    doc.Editor.WriteMessage($"\n[BotPlus AT] Ошибка сохранения штампа: {ex.Message}\n");
                 }
             }
         }

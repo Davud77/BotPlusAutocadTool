@@ -20,7 +20,7 @@ namespace BotPlusAutocadTool.Commands
                 using (doc.LockDocument())
                 {
                     var definition = FormatInsertService.EnsureDefinition(doc.Database);
-                    FormatInsertService.Insert(doc.Database, definition, point.Value);
+                    FormatInsertService.Insert(doc.Database, definition, point.Value.TransformBy(doc.Editor.CurrentUserCoordinateSystem), SettingsService.Settings.FrameInsertionScale);
                 }
                 doc.Editor.Regen();
                 doc.Editor.WriteMessage("\nФорматка WM_FORMAT вставлена на слой WM_FORMAT.\n");

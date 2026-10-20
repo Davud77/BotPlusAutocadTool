@@ -56,6 +56,7 @@ namespace BotPlusAutocadTool.Services
 
         public string BlockName { get; set; } = DefaultBlockName;
         public string LayerName { get; set; } = DefaultLayerName;
+        public int PlotScale { get; set; } = SettingsService.Settings.PlotScale;
 
         #endregion
 
@@ -146,6 +147,7 @@ namespace BotPlusAutocadTool.Services
         /// </summary>
         public PaperFormatDefinition GetFormatDefinition(string formatName)
         {
+            if (string.IsNullOrWhiteSpace(formatName)) return null;
             string baseName = formatName.Replace(" v", "").Trim();
 
             return _definedFormats.FirstOrDefault(f =>
@@ -177,6 +179,7 @@ namespace BotPlusAutocadTool.Services
 
                     int scanned = 0;
                     int matched = 0;
+                    var names = new Dictionary<ObjectId, string>();
 
                     foreach (ObjectId id in ms)
                     {
@@ -188,10 +191,11 @@ namespace BotPlusAutocadTool.Services
                         var blk = (BlockReference)tr.GetObject(id, OpenMode.ForRead);
 
                         // Фильтр: по имени блока и слою
-                        string effectiveName = GetEffectiveName(blk, tr);
-                        if (!effectiveName.Equals(BlockName, StringComparison.OrdinalIgnoreCase) ||
-                            !blk.Layer.Equals(LayerName, StringComparison.OrdinalIgnoreCase))
-                            continue;
+                        if (!blk.Layer.Equals(LayerName, StringComparison.OrdinalIgnoreCase)) continue;
+                        var definitionId = blk.IsDynamicBlock ? blk.DynamicBlockTableRecord : blk.BlockTableRecord;
+                        if (!names.TryGetValue(definitionId, out string effectiveName))
+                            names[definitionId] = effectiveName = GetEffectiveName(blk, tr);
+                        if (!effectiveName.Equals(BlockName, StringComparison.OrdinalIgnoreCase)) continue;
 
                         matched++;
 
@@ -203,7 +207,7 @@ namespace BotPlusAutocadTool.Services
                         }
                         catch (SystemException ex)
                         {
-                            doc.Editor.WriteMessage($"\n[WEAM Warning] Блок {id.Handle} имеет невалидные границы: {ex.Message}\n");
+                            doc.Editor.WriteMessage($"\n[BotPlus AT] Блок {id.Handle} имеет невалидные границы: {ex.Message}\n");
                             continue;
                         }
 
@@ -211,17 +215,17 @@ namespace BotPlusAutocadTool.Services
                         double blockWidth = Math.Abs(Math.Round(ext.MaxPoint.X - ext.MinPoint.X, 0));
                         double blockHeight = Math.Abs(Math.Round(ext.MaxPoint.Y - ext.MinPoint.Y, 0));
 
-                        doc.Editor.WriteMessage($"\n[DEBUG] Блок {id.Handle}: размеры {blockWidth:F0}×{blockHeight:F0} мм\n");
+                        System.Diagnostics.Debug.WriteLine($"\n[DEBUG] Блок {id.Handle}: размеры {blockWidth:F0}×{blockHeight:F0} мм\n");
 
-                        string detectedFormat = IdentifyFormatBySize(blockWidth, blockHeight, out PaperFormatDefinition matchedDef);
+                        string detectedFormat = IdentifyFormatBySize(blockWidth / PlotScale, blockHeight / PlotScale, out PaperFormatDefinition matchedDef);
 
                         if (matchedDef != null)
                         {
-                            doc.Editor.WriteMessage($"[DEBUG] → Определён формат: {detectedFormat} (ГОСТ: {matchedDef.Width}×{matchedDef.Height})\n");
+                            System.Diagnostics.Debug.WriteLine($"[DEBUG] → Определён формат: {detectedFormat} (ГОСТ: {matchedDef.Width}×{matchedDef.Height})\n");
                         }
                         else
                         {
-                            doc.Editor.WriteMessage($"[DEBUG] → Нестандартный формат!\n");
+                            System.Diagnostics.Debug.WriteLine($"[DEBUG] → Нестандартный формат!\n");
                         }
 
                         // Читаем атрибуты
@@ -239,7 +243,8 @@ namespace BotPlusAutocadTool.Services
                             Format = detectedFormat,
                             IsSelected = true,
                             Status = "Готов",
-                            FormatDefinition = matchedDef
+                            FormatDefinition = matchedDef,
+                            PlotScale = PlotScale
                         };
 
                         items.Add(item);
@@ -247,13 +252,13 @@ namespace BotPlusAutocadTool.Services
 
                     tr.Commit();
 
-                    doc.Editor.WriteMessage($"\n[WEAM] Просканировано: {scanned} блоков, найдено форматок: {matched}\n");
+                    doc.Editor.WriteMessage($"\n[BotPlus AT] Просканировано: {scanned} блоков, найдено форматок: {matched}\n");
                 }
                 catch (SystemException ex)
                 {
                     tr.Abort();
                     LogError($"Error scanning blocks: {ex.Message}");
-                    doc.Editor.WriteMessage($"\n[WEAM Error] Ошибка поиска блоков: {ex.Message}\n");
+                    doc.Editor.WriteMessage($"\n[BotPlus AT] Ошибка поиска блоков: {ex.Message}\n");
                 }
             }
 
@@ -316,7 +321,7 @@ namespace BotPlusAutocadTool.Services
                     MessageBox.Show(
                         $"Обновлено блоков: {count}\n" +
                         (skipped > 0 ? $"Пропущено: {skipped}" : ""),
-                        "WEAM",
+                        "BotPlus AT",
                         MessageBoxButton.OK,
                         MessageBoxImage.Information);
                 }
@@ -326,7 +331,7 @@ namespace BotPlusAutocadTool.Services
                     LogError($"Update attributes failed: {ex.Message}");
                     MessageBox.Show(
                         $"Ошибка обновления атрибутов:\n\n{ex.Message}",
-                        "WEAM - Ошибка",
+                        "BotPlus AT — ошибка",
                         MessageBoxButton.OK,
                         MessageBoxImage.Error);
                 }
@@ -393,7 +398,7 @@ namespace BotPlusAutocadTool.Services
                 var att = tr.GetObject(id, OpenMode.ForRead) as AttributeReference;
                 if (att == null) continue;
 
-                string tag = att.Tag.ToUpper();
+                string tag = att.Tag;
                 if (!res.ContainsKey(tag))
                     res.Add(tag, att.TextString);
             }
@@ -416,7 +421,7 @@ namespace BotPlusAutocadTool.Services
 
         private void LogError(string message)
         {
-            System.Diagnostics.Debug.WriteLine($"[WEAM Error] {message}");
+            System.Diagnostics.Debug.WriteLine($"[BotPlus AT] {message}");
             var doc = AcadApp.DocumentManager.MdiActiveDocument;
             doc?.Editor.WriteMessage($"\n[WEAM Log] {message}\n");
         }

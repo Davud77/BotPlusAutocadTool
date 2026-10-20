@@ -21,7 +21,7 @@ namespace BotPlusAutocadTool.Views
             // Отписываемся от событий при закрытии окна
             if (DataContext is SumLengthViewModel vm)
             {
-                vm.StopListening();
+                vm.Dispose();
             }
         }
     }

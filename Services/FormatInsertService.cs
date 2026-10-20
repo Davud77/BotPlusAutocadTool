@@ -49,8 +49,11 @@ namespace BotPlusAutocadTool.Services
             }
         }
 
-        public static ObjectId Insert(Database target, ObjectId definitionId, Point3d position)
+        public static ObjectId Insert(Database target, ObjectId definitionId, Point3d position, double scale = 1)
         {
+            if (!double.IsFinite(scale) || scale <= 0 || scale > 1000000) throw new ArgumentOutOfRangeException(nameof(scale));
+            // Summary properties must exist before fields are attached/evaluated.
+            StampSchema.EnsureProperties(target);
             using (var transaction = target.TransactionManager.StartTransaction())
             {
                 var layers = (LayerTable)transaction.GetObject(target.LayerTableId, OpenMode.ForRead);
@@ -71,6 +74,7 @@ namespace BotPlusAutocadTool.Services
                 var block = new BlockReference(position, definitionId);
                 block.SetDatabaseDefaults(target);
                 block.LayerId = layerId;
+                block.ScaleFactors = new Scale3d(scale);
                 var result = space.AppendEntity(block);
                 transaction.AddNewlyCreatedDBObject(block, true);
                 var definition = (BlockTableRecord)transaction.GetObject(definitionId, OpenMode.ForRead);
@@ -82,6 +86,25 @@ namespace BotPlusAutocadTool.Services
                     reference.TextString = attribute.TextString;
                     block.AttributeCollection.AppendAttribute(reference);
                     transaction.AddNewlyCreatedDBObject(reference, true);
+                    string code = null;
+                    if (attribute.HasFields)
+                    {
+                        var sourceField = (Field)transaction.GetObject(attribute.GetField(), OpenMode.ForRead);
+                        code = sourceField.GetFieldCode(FieldCodeFlags.AddMarkers);
+                        code = code.Replace("?BlockRefId", @"%<\_ObjId " + block.ObjectId.OldIdPtr.ToString() + ">%", StringComparison.Ordinal);
+                    }
+                    else if (attribute.Tag.StartsWith("ДОЛЖНОСТЬ", StringComparison.OrdinalIgnoreCase) && int.TryParse(attribute.Tag.Substring(9), out int role) && role >= 1 && role <= 6)
+                        code = @"%<\AcVar CustomDP.Должн." + role + ">%";
+                    if (code != null)
+                    {
+                        var field = new Field(code, true);
+                        reference.SetField(field);
+                        transaction.AddNewlyCreatedDBObject(field, true);
+                        field.EvaluationOption = FieldEvaluationOptions.Automatic;
+                        field.Evaluate((int)FieldEvaluationContext.Demand, target);
+                    }
+                    else if (string.IsNullOrWhiteSpace(reference.TextString) || reference.TextString == "Наименование чертежа") reference.TextString = " ";
+                    if (reference.IsMTextAttribute) reference.UpdateMTextAttribute();
                 }
                 transaction.Commit();
                 return result;

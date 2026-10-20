@@ -67,7 +67,7 @@ namespace BotPlusAutocadTool.Services
             {
                 // Unexpected host/startup failures must not repeat on every Idle.
                 Stop();
-                Trace.TraceError("BotPlus update service stopped: {0}", ex);
+                Infrastructure.PluginLog.Error("Update callback stopped", ex);
             }
         }
         private static void ProcessIdle()

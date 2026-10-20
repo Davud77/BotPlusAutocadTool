@@ -1,442 +1,133 @@
-<!-- ========================================================================
-     OOXGN - Copyright (c) 2026. All rights reserved.
-     Author: OOXGN | Project: BotPlusAutocadTool
-     SPDX-License-Identifier: AGPL-3.0-only
-     ======================================================================== -->
-<Window x:Class="BotPlusAutocadTool.Views.SumLengthWindow"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:models="clr-namespace:BotPlusAutocadTool.Models"
-        Title="Сумма длин" Height="550" Width="400"
-        ResizeMode="CanResizeWithGrip" 
-        Topmost="True" 
-        WindowStartupLocation="CenterScreen"
-        Background="#1E1E1E"
-        Closing="Window_Closing">
-
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:ui="clr-namespace:BotPlusAutocadTool.UI" x:Class="BotPlusAutocadTool.Views.SumLengthWindow" ui:WindowTheme.Enabled="True" Title="Сумма длин" Width="440" Height="740" MinWidth="340" MinHeight="300" MaxHeight="{Binding Source={x:Static SystemParameters.WorkArea}, Path=Height}" ResizeMode="CanResize" FontFamily="Segoe UI" FontSize="13" Background="{DynamicResource WindowBackground}" Foreground="{DynamicResource TextPrimary}" Closing="Window_Closing" WindowStartupLocation="CenterOwner">
     <Window.Resources>
-        <!-- Converters -->
-        <BooleanToVisibilityConverter x:Key="BoolToVisConverter"/>
-        
-        <!-- Colors -->
-        <SolidColorBrush x:Key="ControlBackground" Color="#2D2D30"/>
-        <SolidColorBrush x:Key="ControlBorder" Color="#434346"/>
-        <SolidColorBrush x:Key="TextPrimary" Color="#F0F0F0"/>
-        <SolidColorBrush x:Key="TextSecondary" Color="#CCCCCC"/>
-
-        <!-- TextBox Style -->
-        <Style TargetType="TextBox" x:Key="ModernInputStyle">
-            <Setter Property="Background" Value="#252526"/>
-            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource ControlBorder}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="8,6"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="TextBox">
-                        <Border Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="4">
-                            <ScrollViewer x:Name="PART_ContentHost" Focusable="false"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsFocused" Value="true">
-                                <Setter Property="BorderBrush" Value="#666666"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- ComboBox Style -->
-        <Style TargetType="ComboBox" x:Key="DarkComboStyle">
-            <Setter Property="Background" Value="#252526"/>
-            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource ControlBorder}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="6,4"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ComboBox">
-                        <Grid>
-                            <ToggleButton x:Name="ToggleButton"
-                                          Background="#252526"
-                                          BorderBrush="{StaticResource ControlBorder}"
-                                          BorderThickness="1"
-                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
-                                          ClickMode="Press">
-                                <ToggleButton.Template>
-                                    <ControlTemplate TargetType="ToggleButton">
-                                        <Border Background="#252526" BorderBrush="{StaticResource ControlBorder}" BorderThickness="1" CornerRadius="4">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition/>
-                                                    <ColumnDefinition Width="20"/>
-                                                </Grid.ColumnDefinitions>
-                                                <ContentPresenter Grid.Column="0"/>
-                                                <Path Grid.Column="1" Data="M0,0 L4,4 L8,0" Stroke="#888888" StrokeThickness="1.5" 
-                                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Grid>
-                                        </Border>
-                                    </ControlTemplate>
-                                </ToggleButton.Template>
-                            </ToggleButton>
-                            <ContentPresenter x:Name="ContentSite"
-                                              Content="{TemplateBinding SelectionBoxItem}"
-                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
-                                              Margin="8,4,24,4"
-                                              VerticalAlignment="Center"
-                                              HorizontalAlignment="Left"
-                                              IsHitTestVisible="False"/>
-                            <Popup x:Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}" 
-                                   AllowsTransparency="True" PopupAnimation="Slide">
-                                <Border Background="#252526" BorderBrush="{StaticResource ControlBorder}" 
-                                        BorderThickness="1" CornerRadius="4" Margin="0,2,0,0">
-                                    <ScrollViewer MaxHeight="200">
-                                        <ItemsPresenter/>
-                                    </ScrollViewer>
-                                </Border>
-                            </Popup>
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- ComboBoxItem Style -->
-        <Style TargetType="ComboBoxItem">
-            <Setter Property="Background" Value="#252526"/>
-            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
-            <Setter Property="Padding" Value="8,6"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ComboBoxItem">
-                        <Border x:Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#3E3E42"/>
-                            </Trigger>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#094771"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Label Style -->
-        <Style TargetType="TextBlock" x:Key="LabelStyle">
-            <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-        </Style>
-
-        <!-- Clickable Value Style -->
-        <Style TargetType="Button" x:Key="ClickableValueStyle">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="HorizontalContentAlignment" Value="Left"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="4" Padding="4,2">
-                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="true">
-                                <Setter TargetName="border" Property="Background" Value="#3E3E42"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Item Button Style -->
-        <Style TargetType="Button" x:Key="ItemButtonStyle">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="8,4"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="3" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="true">
-                                <Setter Property="Background" TargetName="border" Value="#3E3E42"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Expander Style -->
-        <Style TargetType="Expander">
-            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
-            <Setter Property="BorderThickness" Value="0"/>
-        </Style>
-
-        <!-- ScrollBar Thumb Style -->
-        <Style x:Key="ScrollBarThumb" TargetType="Thumb">
-            <Setter Property="OverridesDefaultStyle" Value="true"/>
-            <Setter Property="IsTabStop" Value="false"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Thumb">
-                        <Border x:Name="rectangle" Background="#555555" CornerRadius="4" Margin="2"/>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="true">
-                                <Setter TargetName="rectangle" Property="Background" Value="#888888"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Vertical ScrollBar Style -->
-        <Style TargetType="ScrollBar">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Width" Value="10"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ScrollBar">
-                        <Grid Background="#2D2D30">
-                            <Track x:Name="PART_Track" IsDirectionReversed="true">
-                                <Track.Thumb>
-                                    <Thumb Style="{StaticResource ScrollBarThumb}"/>
-                                </Track.Thumb>
-                            </Track>
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Styles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        </ResourceDictionary>
     </Window.Resources>
-
-    <Grid Margin="16">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
-
-        <!-- 1. Total Length + Area with separate copy -->
-        <Border Grid.Row="0" Background="#252526" CornerRadius="6" Padding="16" Margin="0,0,0,12">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                
-                <!-- Length -->
-                <StackPanel Grid.Row="0" Grid.Column="0">
-                    <TextBlock Text="Общая длина / Периметр" Style="{StaticResource LabelStyle}" Margin="0,0,0,4"/>
-                    <Button Style="{StaticResource ClickableValueStyle}" 
-                            Command="{Binding CopyLengthCommand}"
-                            ToolTip="Скопировать длину">
-                        <TextBlock Text="{Binding TotalLengthFormatted}" 
-                                   FontSize="26" FontWeight="Bold" Foreground="{StaticResource TextPrimary}"/>
-                    </Button>
-                </StackPanel>
-                
-                <!-- Length Unit selector -->
-                <ComboBox Grid.Row="0" Grid.Column="1" 
-                          ItemsSource="{Binding LengthUnits}" 
-                          SelectedItem="{Binding SelectedLengthUnit}"
-                          Style="{StaticResource DarkComboStyle}"
-                          VerticalAlignment="Bottom"
-                          Width="65" Margin="8,0,0,0">
-                    <ComboBox.ItemTemplate>
+    <DockPanel Background="{DynamicResource WindowBackground}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Margin="12">
+                <GroupBox Header="Длина / периметр">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="78"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Command="{Binding CopyLengthCommand}" ToolTip="Скопировать длину" Padding="6">
+                            <TextBlock Text="{Binding TotalLengthFormatted}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" FontSize="22" FontWeight="SemiBold"/>
+                        </Button>
+                        <ComboBox Grid.Column="1" SelectedIndex="{Binding LengthUnitIndex}" Margin="8,0,0,0">
+                            <ComboBoxItem Content="мм"/>
+                            <ComboBoxItem Content="м"/>
+                            <ComboBoxItem Content="км"/>
+                        </ComboBox>
+                    </Grid>
+                </GroupBox>
+                <GroupBox Header="Площадь" Visibility="{Binding HasTotalArea, Converter={StaticResource BoolToVis}}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="78"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Command="{Binding CopyAreaCommand}" Padding="6" ToolTip="Скопировать площадь">
+                            <TextBlock Text="{Binding TotalAreaFormatted}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" FontSize="20" FontWeight="SemiBold"/>
+                        </Button>
+                        <ComboBox Grid.Column="1" SelectedIndex="{Binding AreaUnitIndex}" Margin="8,0,0,0">
+                            <ComboBoxItem Content="мм²"/>
+                            <ComboBoxItem Content="м²"/>
+                            <ComboBoxItem Content="км²"/>
+                        </ComboBox>
+                    </Grid>
+                </GroupBox>
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Масштаб" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBox Grid.Column="1" Text="{Binding ScaleNumerator, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text=" : " VerticalAlignment="Center"/>
+                    <TextBox Grid.Column="3" Text="{Binding ScaleDenominator, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center"/>
+                </Grid>
+                <TextBlock Margin="0,0,0,12">
+                    <Run Text="Объектов: "/>
+                    <Run Text="{Binding TotalCount, Mode=OneWay}"/>
+                    <Run Text="    Типов: "/>
+                    <Run Text="{Binding GroupCount, Mode=OneWay}"/>
+                </TextBlock>
+                <Expander Header="Калькулятор" IsExpanded="True" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,12">
+                    <StackPanel Margin="0,10,0,0">
+                        <TextBox Text="{Binding CalculatorExpression, UpdateSourceTrigger=PropertyChanged}" ToolTip="Например: L * 1,15 + 250. Поддерживаются скобки, проценты и степень.">
+                            <TextBox.InputBindings>
+                                <KeyBinding Key="Return" Command="{Binding CalculateCommand}"/>
+                            </TextBox.InputBindings>
+                        </TextBox>
+                        <Button Content="{Binding CalculatorResult}" Command="{Binding CopyCalculatorCommand}" ToolTip="Скопировать результат" FontSize="20" FontWeight="SemiBold" HorizontalContentAlignment="Right" Margin="0,6,0,6"/>
+                        <TextBlock Text="{Binding CalculatorError}" Foreground="#FFB99B" Margin="0,0,0,6"/>
+                        <UniformGrid Columns="5">
+                            <Button Content="7" Command="{Binding CalculatorKeyCommand}" CommandParameter="7" Margin="2" MinWidth="0" Padding="4,5"/>
+                            <Button Content="8" Command="{Binding CalculatorKeyCommand}" CommandParameter="8" Margin="2" MinWidth="0" Padding="4,5"/>
+                            <Button Content="9" Command="{Binding CalculatorKeyCommand}" CommandParameter="9" Margin="2" MinWidth="0" Padding="4,5"/>
+                            <Button Content="÷" Command="{Binding CalculatorKeyCommand}" CommandParameter="/" Margin="2" MinWidth="0" Padding="4,5"/>
+                            <Button Content="C" Command="{Binding CalculatorKeyCommand}" CommandParameter="C" Margin="2" MinWidth="0" Padding="4,5"/>
+                            <Button Content="4" Command="{Binding CalculatorKeyCommand}" CommandParameter="4" Margin="2" MinWidth="0" Padding="4,5"/>
+                            <Button Content="5" Command="{Binding CalculatorKeyCommand}" CommandParameter="5" Margin="2" MinWidth="0" Padding="4,5"/>
+                            <Button Content="6" Command="{Binding CalculatorKeyCommand}" CommandParameter="6" Margin="2" MinWidth="0" Padding="4,5"/>
+                            <Button Content="×" Command="{Binding CalculatorKeyCommand}" CommandParameter="*" Margin="2" MinWidth="0" Padding="4,5"/>
+                            <Button Content="⌫" Command="{Binding CalculatorKeyCommand}" CommandParameter="Back" Margin="2" MinWidth="0" Padding="4,5"/>
+                            <Button Content="1" Command="{Binding CalculatorKeyCommand}" CommandParameter="1" Margin="2" MinWidth="0" Padding="4,5"/>
+                            <Button Content="2" Command="{Binding CalculatorKeyCommand}" CommandParameter="2" Margin="2" MinWidth="0" Padding="4,5"/>
+                            <Button Content="3" Command="{Binding CalculatorKeyCommand}" CommandParameter="3" Margin="2" MinWidth="0" Padding="4,5"/>
+                            <Button Content="−" Command="{Binding CalculatorKeyCommand}" CommandParameter="-" Margin="2" MinWidth="0" Padding="4,5"/>
+                            <Button Content="(" Command="{Binding CalculatorKeyCommand}" CommandParameter="(" Margin="2" MinWidth="0" Padding="4,5"/>
+                            <Button Content="0" Command="{Binding CalculatorKeyCommand}" CommandParameter="0" Margin="2" MinWidth="0" Padding="4,5"/>
+                            <Button Content="," Command="{Binding CalculatorKeyCommand}" CommandParameter="." Margin="2" MinWidth="0" Padding="4,5"/>
+                            <Button Content="%" Command="{Binding CalculatorKeyCommand}" CommandParameter="%" Margin="2" MinWidth="0" Padding="4,5"/>
+                            <Button Content="+" Command="{Binding CalculatorKeyCommand}" CommandParameter="+" Margin="2" MinWidth="0" Padding="4,5"/>
+                            <Button Content=")" Command="{Binding CalculatorKeyCommand}" CommandParameter=")" Margin="2" MinWidth="0" Padding="4,5"/>
+                            <Button Content="L" Command="{Binding CalculatorKeyCommand}" CommandParameter="L" Margin="2" MinWidth="0" Padding="4,5"/>
+                            <Button Content="A" Command="{Binding CalculatorKeyCommand}" CommandParameter="A" Margin="2" MinWidth="0" Padding="4,5"/>
+                            <Button Content="^" Command="{Binding CalculatorKeyCommand}" CommandParameter="^" Margin="2" MinWidth="0" Padding="4,5"/>
+                            <Button Content="=" Command="{Binding CalculateCommand}" CommandParameter="=" Margin="2" MinWidth="0" Padding="4,5"/>
+                            <Button Content="Копия" Command="{Binding CopyCalculatorCommand}" CommandParameter="Copy" Margin="2" MinWidth="0" Padding="4,5"/>
+                        </UniformGrid>
+                        <TextBlock Text="L — длина, A — площадь в выбранных выше единицах. Например: L × 1,15. Результат — число." Foreground="{DynamicResource TextSecondary}" Margin="0,8,0,0"/>
+                    </StackPanel>
+                </Expander>
+                <ItemsControl ItemsSource="{Binding Groups}">
+                    <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <TextBlock Foreground="#F0F0F0">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding}" Value="Millimeters">
-                                                <Setter Property="Text" Value="мм"/>
-                                            </DataTrigger>
-                                            <DataTrigger Binding="{Binding}" Value="Meters">
-                                                <Setter Property="Text" Value="м"/>
-                                            </DataTrigger>
-                                            <DataTrigger Binding="{Binding}" Value="Kilometers">
-                                                <Setter Property="Text" Value="км"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
-
-                <!-- Area (if available) -->
-                <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,12,0,0"
-                            Visibility="{Binding HasTotalArea, Converter={StaticResource BoolToVisConverter}}">
-                    <TextBlock Text="Общая площадь" Style="{StaticResource LabelStyle}" Margin="0,0,0,4"/>
-                    <Button Style="{StaticResource ClickableValueStyle}" 
-                            Command="{Binding CopyAreaCommand}"
-                            ToolTip="Скопировать площадь">
-                        <TextBlock Text="{Binding TotalAreaFormatted}" 
-                                   FontSize="20" FontWeight="SemiBold" Foreground="#CCCCCC"/>
-                    </Button>
-                </StackPanel>
-                
-                <!-- Area Unit selector -->
-                <ComboBox Grid.Row="1" Grid.Column="1" 
-                          ItemsSource="{Binding AreaUnits}" 
-                          SelectedItem="{Binding SelectedAreaUnit}"
-                          Style="{StaticResource DarkComboStyle}"
-                          VerticalAlignment="Bottom"
-                          Width="65" Margin="8,12,0,0"
-                          Visibility="{Binding HasTotalArea, Converter={StaticResource BoolToVisConverter}}">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Foreground="#F0F0F0">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding}" Value="SquareMillimeters">
-                                                <Setter Property="Text" Value="мм²"/>
-                                            </DataTrigger>
-                                            <DataTrigger Binding="{Binding}" Value="SquareMeters">
-                                                <Setter Property="Text" Value="м²"/>
-                                            </DataTrigger>
-                                            <DataTrigger Binding="{Binding}" Value="SquareKilometers">
-                                                <Setter Property="Text" Value="км²"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
-            </Grid>
-        </Border>
-
-        <!-- 2. Scale -->
-        <Border Grid.Row="1" Background="#252526" CornerRadius="6" Padding="12" Margin="0,0,0,12">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="50"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="50"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                
-                <TextBlock Grid.Column="0" Text="Масштаб" Style="{StaticResource LabelStyle}" Margin="0,0,8,0"/>
-                <TextBox Grid.Column="1" Text="{Binding ScaleNumerator, UpdateSourceTrigger=PropertyChanged}" 
-                         Style="{StaticResource ModernInputStyle}" HorizontalContentAlignment="Center"/>
-                <TextBlock Grid.Column="2" Text=" : " Foreground="{StaticResource TextSecondary}" 
-                           FontSize="16" VerticalAlignment="Center" Margin="4,0"/>
-                <TextBox Grid.Column="3" Text="{Binding ScaleDenominator, UpdateSourceTrigger=PropertyChanged}" 
-                         Style="{StaticResource ModernInputStyle}" HorizontalContentAlignment="Center"/>
-                <TextBlock Grid.Column="4" Text="{Binding ScaleInfo}" Style="{StaticResource LabelStyle}" 
-                           Margin="8,0,0,0" FontStyle="Italic"/>
-            </Grid>
-        </Border>
-
-        <!-- 3. Stats -->
-        <Border Grid.Row="2" Background="#252526" CornerRadius="6" Padding="12" Margin="0,0,0,12">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0">
-                    <TextBlock Text="Объектов" Style="{StaticResource LabelStyle}"/>
-                    <TextBlock Text="{Binding TotalCount}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"/>
-                </StackPanel>
-                <StackPanel Grid.Column="1">
-                    <TextBlock Text="Типов" Style="{StaticResource LabelStyle}"/>
-                    <TextBlock Text="{Binding GroupCount}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}"/>
-                </StackPanel>
-            </Grid>
-        </Border>
-
-        <!-- 4. List of Groups with Items -->
-        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
-            <ItemsControl ItemsSource="{Binding Groups}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Border Background="#252526" CornerRadius="4" Margin="0,0,0,8">
-                            <Expander IsExpanded="False" Padding="12">
+                            <Expander Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8">
                                 <Expander.Header>
-                                    <Grid Width="320">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Grid.Column="0">
-                                            <TextBlock Text="{Binding ObjectType}" Foreground="#F0F0F0" FontWeight="SemiBold"/>
-                                            <TextBlock Foreground="#888888" FontSize="11">
-                                                <Run Text="{Binding Count, Mode=OneWay}"/> <Run Text="шт."/>
-                                            </TextBlock>
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding TotalLengthFormatted}" 
-                                                       Foreground="#F0F0F0" FontSize="14" FontWeight="SemiBold"/>
-                                            <TextBlock Text="{Binding TotalAreaFormatted}" 
-                                                       Foreground="#888888" FontSize="11"
-                                                       Visibility="{Binding HasArea, Converter={StaticResource BoolToVisConverter}}"/>
-                                        </StackPanel>
-                                    </Grid>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding ObjectType}" FontWeight="SemiBold"/>
+                                        <TextBlock Text="{Binding TotalLengthFormatted}"/>
+                                        <TextBlock Text="{Binding TotalAreaFormatted}" Visibility="{Binding HasArea, Converter={StaticResource BoolToVis}}"/>
+                                    </StackPanel>
                                 </Expander.Header>
-                                
-                                <!-- Items List -->
-                                <ItemsControl ItemsSource="{Binding Items}" Margin="0,8,0,0">
+                                <ItemsControl ItemsSource="{Binding Items}" Margin="0,6,0,0">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Button Style="{StaticResource ItemButtonStyle}"
-                                                    Command="{Binding DataContext.ZoomToObjectCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                    CommandParameter="{Binding}">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <StackPanel Grid.Column="0">
-                                                        <TextBlock Text="{Binding CoordinatesInfo}" Foreground="#888888" FontSize="11"/>
-                                                    </StackPanel>
-                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                        <TextBlock Text="{Binding LengthFormatted}" 
-                                                                   Foreground="#CCCCCC" FontSize="12"/>
-                                                        <TextBlock Text="{Binding AreaFormatted}" 
-                                                                   Foreground="#666666" FontSize="10"
-                                                                   Visibility="{Binding HasArea, Converter={StaticResource BoolToVisConverter}}"/>
-                                                    </StackPanel>
-                                                </Grid>
+                                            <Button Command="{Binding DataContext.ZoomToObjectCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" HorizontalContentAlignment="Stretch" Margin="0,2">
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding CoordinatesInfo}" FontSize="11"/>
+                                                    <TextBlock Text="{Binding LengthFormatted}"/>
+                                                    <TextBlock Text="{Binding AreaFormatted}" Visibility="{Binding HasArea, Converter={StaticResource BoolToVis}}"/>
+                                                </StackPanel>
                                             </Button>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
                             </Expander>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
         </ScrollViewer>
-    </Grid>
+    </DockPanel>
 </Window>

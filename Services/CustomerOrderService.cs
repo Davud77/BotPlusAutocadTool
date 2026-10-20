@@ -127,7 +127,10 @@ namespace BotPlusAutocadTool.Services
             var name = Path.GetFileNameWithoutExtension(src);
             var dated = $"{name}_{DateTime.Now:yy.MM.dd}.dwg";
 
-            return Path.Combine(dir, dated);
+            var path = Path.Combine(dir, dated);
+            for (int suffix = 2; File.Exists(path); suffix++)
+                path = Path.Combine(dir, $"{name}_{DateTime.Now:yy.MM.dd}_{suffix}.dwg");
+            return path;
         }
 
         // ==========================================================================

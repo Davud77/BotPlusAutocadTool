@@ -53,8 +53,8 @@ namespace BotPlusAutocadTool.Commands
                 Application.ShowAlertDialog(errorMessage);
 
                 var doc = Application.DocumentManager.MdiActiveDocument;
-                doc?.Editor.WriteMessage($"\n[WEAM Error] BatchPlotCommand failed: {ex.Message}\n");
-                doc?.Editor.WriteMessage($"[WEAM Error] Stack trace: {ex.StackTrace}\n");
+                doc?.Editor.WriteMessage($"\n[BotPlus AT] BatchPlotCommand failed: {ex.Message}\n");
+                doc?.Editor.WriteMessage($"[BotPlus AT] Stack trace: {ex.StackTrace}\n");
             }
         }
 

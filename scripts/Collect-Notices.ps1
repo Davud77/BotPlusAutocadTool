@@ -4,8 +4,8 @@ $root = Split-Path $PSScriptRoot -Parent
 $destination = Join-Path $BundlePath 'ThirdPartyNotices'
 New-Item -ItemType Directory -Path $destination -Force | Out-Null
 $seen = @{}
-foreach ($year in @(2025,2027)) {
-    $assetsPath = Join-Path $root "obj\AutoCAD$year\project.assets.json"
+foreach ($relativeAssets in @('obj\AutoCAD2025\project.assets.json','obj\AutoCAD2027\project.assets.json','ExcelRuntime\obj\project.assets.json')) {
+    $assetsPath = Join-Path $root $relativeAssets
     $assets = Get-Content -LiteralPath $assetsPath -Raw | ConvertFrom-Json
     foreach ($entry in $assets.libraries.PSObject.Properties) {
         if ($entry.Value.type -ne 'package' -or $entry.Name -like 'AutoCAD.NET*' -or $seen.ContainsKey($entry.Name)) { continue }

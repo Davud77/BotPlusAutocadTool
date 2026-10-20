@@ -76,6 +76,16 @@ namespace BotPlusAutocadTool.Services
 
             try { doc.CommandWillStart -= handler; } catch { /* ignore */ }
             _handlers.Remove(doc);
+            if (_handlers.Count == 0 && _docDestroyHooked)
+            {
+                AcadCoreApp.DocumentManager.DocumentToBeDestroyed -= OnDocToBeDestroyed;
+                _docDestroyHooked = false;
+            }
+        }
+
+        public static void Shutdown()
+        {
+            foreach (var doc in new List<Document>(_handlers.Keys)) Disable(doc);
         }
 
         private static void OnDocToBeDestroyed(object sender, DocumentCollectionEventArgs e)

@@ -6,5 +6,6 @@
   <ItemGroup>
     <Compile Include="..\..\Services\SettingsService.cs" Link="SettingsService.cs" />
     <Compile Include="..\..\Services\UpdateCheckService.cs" Link="UpdateCheckService.cs" />
+    <Compile Include="..\..\Infrastructure\AtomicFile.cs" Link="AtomicFile.cs" />
   </ItemGroup>
 </Project>

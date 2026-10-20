@@ -184,19 +184,7 @@ namespace BotPlusAutocadTool.Commands
                         for (int i = 1; i <= copyCount; i++)
                         {
                             Vector3d offset = unitDirection * (actualSpacing * i);
-                            Matrix3d transform = Matrix3d.Displacement(offset);
-
-                            foreach (Entity srcEnt in sourceEntities)
-                            {
-                                Entity clone = srcEnt.Clone() as Entity;
-                                if (clone != null)
-                                {
-                                    clone.TransformBy(transform);
-                                    currentSpace.AppendEntity(clone);
-                                    tr.AddNewlyCreatedDBObject(clone, true);
-                                    createdCount++;
-                                }
-                            }
+                            createdCount += Services.CopyService.Copy(tr, currentSpace, sourceEntities, offset);
                         }
 
                         tr.Commit();

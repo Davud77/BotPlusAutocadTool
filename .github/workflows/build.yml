@@ -35,3 +35,10 @@ jobs:
             dotnet run --project ./tests/UpdateChecks/UpdateChecks.csproj -c Release -f $framework
             if ($LASTEXITCODE -ne 0) { throw "Regression checks failed: $framework" }
           }
+      - name: Check core behavior on both runtimes
+        shell: pwsh
+        run: |
+          foreach ($framework in @('net8.0-windows','net10.0-windows')) {
+            dotnet run --project ./tests/CoreChecks/CoreChecks.csproj -c Release -f $framework
+            if ($LASTEXITCODE -ne 0) { throw "Core checks failed: $framework" }
+          }

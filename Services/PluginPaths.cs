@@ -9,9 +9,7 @@ namespace BotPlusAutocadTool.Services
         {
             get
             {
-                var directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "BotPlusAutocadTool");
-                Directory.CreateDirectory(directory);
-                return directory;
+                return Infrastructure.AppDataPaths.UserDirectory;
             }
         }
 

@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net8.0-windows</TargetFramework><PlatformTarget>x64</PlatformTarget><UseWPF>true</UseWPF><UseWindowsForms>true</UseWindowsForms><ImplicitUsings>disable</ImplicitUsings><Nullable>disable</Nullable><NoWarn>$(NoWarn);CS0436</NoWarn></PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" Version="9.0.4"/>
+    <!-- Exercise the exact queue source while the installed candidate supplies DWG/PDF services. -->
+    <Compile Include="../../Services/DsdPublishService.cs" Link="DsdPublishService.cs"/>
+    <Compile Include="../../Services/PublishFileReadiness.cs" Link="PublishFileReadiness.cs"/>
+    <Compile Include="../../Services/PublishedOutputService.cs" Link="PublishedOutputService.cs"/>
+    <Compile Include="../../Services/PdfOutputPaths.cs" Link="PdfOutputPaths.cs"/>
+    <Reference Include="BotPlusAutocadTool"><HintPath>../../bin/Release/AutoCAD2026/net8.0-windows/BotPlusAutocadTool.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="AcCoreMgd"><HintPath>C:/Program Files/Autodesk/AutoCAD 2026/accoremgd.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="AcDbMgd"><HintPath>C:/Program Files/Autodesk/AutoCAD 2026/acdbmgd.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="AcMgd"><HintPath>C:/Program Files/Autodesk/AutoCAD 2026/acmgd.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+</Project>

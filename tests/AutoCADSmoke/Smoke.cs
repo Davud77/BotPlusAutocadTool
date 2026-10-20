@@ -15,7 +15,8 @@ public class Smoke
         var editor = AcadApp.DocumentManager.MdiActiveDocument.Editor;
         try
         {
-            if (typeof(SettingsService).Assembly.GetName().Version != new Version(1, 2, 1, 0))
+            var expectedVersion = typeof(Smoke).Assembly.GetReferencedAssemblies().Single(name => name.Name == "BotPlusAutocadTool").Version;
+            if (typeof(SettingsService).Assembly.GetName().Version != expectedVersion)
                 throw new InvalidOperationException("Unexpected plugin version loaded");
             if (SettingsService.Settings == null) throw new InvalidOperationException("Settings initialization failed");
             if (ReleaseVersion.FindUpdate("[]", new Version(1, 2, 1)) != null)
@@ -56,7 +57,7 @@ public class Smoke
             }
             var commandCount = typeof(BotPlusAutocadTool.App).Assembly.GetTypes()
                 .SelectMany(type => type.GetMethods()).SelectMany(method => method.GetCustomAttributes(typeof(CommandMethodAttribute), false)).Count();
-            if (commandCount != 19) throw new InvalidOperationException("Missing commands: " + commandCount);
+            if (commandCount != 23) throw new InvalidOperationException("Missing commands: " + commandCount);
             using (var library = new Database(false, true))
             {
                 library.ReadDwgFile(FormatInsertService.TemplatePath, FileOpenMode.OpenForReadAndAllShare, true, null);
@@ -102,9 +103,14 @@ public class Smoke
                     if (stamp.НаименованиеОбъекта != value) throw new InvalidOperationException("Stamp round-trip failed at " + length);
                 }
             }
-            editor.WriteMessage("\nBOTPLUS_SMOKE_PASS: 19 commands, format import/insertion/attributes, status length, text reset, stamp round-trip.\n");
+            DomainChecks.Run(AcadApp.DocumentManager.MdiActiveDocument);
+            FeatureChecks.Run(editor);
+            editor.WriteMessage("\nBOTPLUS_SMOKE_PASS: 23 commands; expanded domain checks and WPF window layout.\n");
         }
-        catch (System.Exception ex) { editor.WriteMessage("\nBOTPLUS_SMOKE_FAIL: " + ex + "\n"); }
+        catch (System.Exception ex)
+        {
+            editor.WriteMessage("\nBOTPLUS_SMOKE_FAIL: " + ex + "\n");
+        }
     }
 
     private sealed class TestStampService : IAutoCADService

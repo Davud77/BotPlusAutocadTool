@@ -40,7 +40,7 @@ namespace BotPlusAutocadTool.Services
                 if (!isModel && !isPaper) continue;
 
                 // Если это Лист, а пользователь отказался чистить листы -> пропускаем
-                if (isPaper && !cleanLayouts) continue;
+                if (!isModel && isPaper && !cleanLayouts) continue;
 
                 // Проход по объектам внутри пространства
                 foreach (ObjectId entId in btr)
@@ -49,7 +49,9 @@ namespace BotPlusAutocadTool.Services
                     if (keepIds.Contains(entId)) continue;
 
                     // Получаем объект
-                    Entity ent = (Entity)_tr.GetObject(entId, OpenMode.ForRead);
+                    if (entId.IsNull || !entId.IsValid || entId.IsErased) continue;
+                    Entity ent = (Entity)_tr.GetObject(entId, OpenMode.ForRead, false, forceOpenOnLockedLayer: true);
+                    if (ent is Viewport viewport && viewport.Number == 1) continue;
 
                     // Нельзя удалять Viewport, который является самим листом (обычно первый в списке)
                     // Но проще проверить через исключение или тип, если это специфичный объект листа.
@@ -58,13 +60,6 @@ namespace BotPlusAutocadTool.Services
                     try
                     {
                         // Проверка на заблокированный слой
-                        LayerTableRecord layer = (LayerTableRecord)_tr.GetObject(ent.LayerId, OpenMode.ForRead);
-                        if (layer.IsLocked)
-                        {
-                            layer.UpgradeOpen();
-                            layer.IsLocked = false;
-                        }
-
                         ent.UpgradeOpen();
                         ent.Erase();
                         deletedCount++;

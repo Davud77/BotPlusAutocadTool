@@ -43,6 +43,7 @@ namespace BotPlusAutocadTool.Models
         /// НОВОЕ: Определение формата (ТОЧНЫЕ размеры по ГОСТ) для использования в PageSetup
         /// </summary>
         public PaperFormatDefinition FormatDefinition { get; set; }
+        public int PlotScale { get; set; } = 1;
 
         #endregion
 

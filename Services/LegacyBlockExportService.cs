@@ -39,18 +39,14 @@ namespace BotPlusAutocadTool.Services
                 !Path.IsPathRooted(dwgPathForDsd) ||
                 !File.Exists(dwgPathForDsd))
             {
-                ed.WriteMessage("\n[WEAM] Чертёж не сохранён или путь к DWG не найден. Сохраните DWG и повторите.");
+                ed.WriteMessage("\n[BotPlus AT] Чертёж не сохранён или путь к DWG не найден. Сохраните DWG и повторите.");
                 return false;
             }
 
             string folder = Path.GetDirectoryName(dwgPathForDsd) ?? "";
             string baseNameNoExt = Path.GetFileNameWithoutExtension(dwgPathForDsd) ?? "Drawing";
 
-            var dsd = new StringBuilder();
-            dsd.AppendLine("[DWF6Version]");
-            dsd.AppendLine("Ver=1");
-            dsd.AppendLine("[DWF6MinorVersion]");
-            dsd.AppendLine("MinorVer=1");
+            var entries = new List<DsdSheet>();
 
             int index = 1;
 
@@ -113,81 +109,28 @@ namespace BotPlusAutocadTool.Services
 
                     ApplyPlotSettingsForBlock(ps, ext);
 
-                    // DSD sheet section
-                    dsd.AppendLine($"[DWF6Sheet:{sheetTitle}]");
-                    dsd.AppendLine($"DWG={dwgPathForDsd}");
-                    dsd.AppendLine("Layout=Model");
-                    dsd.AppendLine($"Setup={setupName}");
-                    dsd.AppendLine($"OriginalSheetPath={dwgPathForDsd}");
-                    dsd.AppendLine("Has Plot Port=0");
-                    dsd.AppendLine("Has3DDWF=0");
+                    entries.Add(new DsdSheet(dwgPathForDsd, "Model", setupName, sheetTitle));
 
                     index++;
                 }
 
                 tr.Commit();
-                ed.WriteMessage($"\n[WEAM] Создано/обновлено Page Setup'ов: {index - 1}");
+                ed.WriteMessage($"\n[BotPlus AT] Создано/обновлено Page Setup'ов: {index - 1}");
             }
 
             if (index == 1)
             {
-                ed.WriteMessage("\n[WEAM] В модели не найдено ни одного блока для печати.");
+                ed.WriteMessage("\n[BotPlus AT] В модели не найдено ни одного блока для печати.");
                 return false;
             }
 
             string pdfName = Path.Combine(folder, "WEAM_Model.pdf");
 
-            dsd.AppendLine("[Target]");
-            dsd.AppendLine("Type=6");
-            dsd.AppendLine($"DWF={pdfName}");
-            dsd.AppendLine($"OUT={folder}");
-            dsd.AppendLine("PWD=");
-            dsd.AppendLine("[MRU block template]");
-            dsd.AppendLine("MRU=0");
-            dsd.AppendLine("[MRU Local]");
-            dsd.AppendLine("MRU=1");
-            dsd.AppendLine("File0=");
-            dsd.AppendLine("[MRU Sheet List]");
-            dsd.AppendLine("MRU=1");
-            dsd.AppendLine($"File0={dsdPath}");
-            dsd.AppendLine("[PdfOptions]");
-            dsd.AppendLine("IncludeHyperlinks=FALSE");
-            dsd.AppendLine("CreateBookmarks=FALSE");
-            dsd.AppendLine("CaptureFontsInDrawing=TRUE");
-            dsd.AppendLine("ConvertTextToGeometry=FALSE");
-            dsd.AppendLine("VectorResolution=1200");
-            dsd.AppendLine("RasterResolution=400");
-            dsd.AppendLine("[AutoCAD Block Data]");
-            dsd.AppendLine("IncludeBlockInfo=0");
-            dsd.AppendLine("BlockTmplFilePath=");
-            dsd.AppendLine("[SheetSet Properties]");
-            dsd.AppendLine("IsSheetSet=FALSE");
-            dsd.AppendLine("IsHomogeneous=FALSE");
-            dsd.AppendLine("SheetSet Name=");
-            dsd.AppendLine("NoOfCopies=1");
-            dsd.AppendLine("PlotStampOn=FALSE");
-            dsd.AppendLine("ViewFile=TRUE");
-            dsd.AppendLine("JobID=1");
-            dsd.AppendLine("SelectionSetName=");
-            dsd.AppendLine("AcadProfile=");
-            dsd.AppendLine("CategoryName=");
-            dsd.AppendLine("LogFilePath=");
-            dsd.AppendLine("IncludeLayer=TRUE");
-            dsd.AppendLine("LineMerge=FALSE");
-            dsd.AppendLine("CurrentPrecision=");
-            dsd.AppendLine("PromptForDwfName=FALSE");
-            dsd.AppendLine("PwdProtectPublishedDWF=FALSE");
-            dsd.AppendLine("PromptForPwd=FALSE");
-            dsd.AppendLine("RepublishingMarkups=FALSE");
-            dsd.AppendLine("PublishSheetSetMetadata=FALSE");
-            dsd.AppendLine("PublishSheetMetadata=FALSE");
-            dsd.AppendLine("3DDWFOptions=0 1");
+            DsdFileWriter.Write(dsdPath, pdfName, entries);
 
-            File.WriteAllText(dsdPath, dsd.ToString(), Encoding.Unicode);
-
-            ed.WriteMessage($"\n[WEAM] DSD записан: {dsdPath}");
-            ed.WriteMessage($"\n[WEAM] DWG в DSD: {dwgPathForDsd}");
-            ed.WriteMessage($"\n[WEAM] PDF цель: {pdfName}");
+            ed.WriteMessage($"\n[BotPlus AT] DSD записан: {dsdPath}");
+            ed.WriteMessage($"\n[BotPlus AT] DWG в DSD: {dwgPathForDsd}");
+            ed.WriteMessage($"\n[BotPlus AT] PDF цель: {pdfName}");
             return true;
         }
 

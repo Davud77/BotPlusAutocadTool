@@ -37,8 +37,12 @@ namespace BotPlusAutocadTool.Services
             Point3d target1, Point3d target2, Point3d target3)
         {
             // Проверка на совпадение точек
-            if (source1.DistanceTo(source2) < DistanceEpsilon || source1.DistanceTo(source3) < DistanceEpsilon)
+            if (source1.DistanceTo(source2) < DistanceEpsilon || source1.DistanceTo(source3) < DistanceEpsilon ||
+                target1.DistanceTo(target2) < DistanceEpsilon || target1.DistanceTo(target3) < DistanceEpsilon)
                 throw new ArgumentException("Точки слишком близко.");
+            if ((source2 - source1).CrossProduct(source3 - source1).Length < Epsilon ||
+                (target2 - target1).CrossProduct(target3 - target1).Length < Epsilon)
+                throw new ArgumentException("Три точки не должны лежать на одной прямой.");
 
             // Расчет базовых углов
             double angS1S2 = GetAngle2d(source1, source2);

@@ -41,7 +41,7 @@ namespace BotPlusAutocadTool.Services
 
         private const string PlotterName = "DWG To PDF.pc3";
 
-        private static readonly Dictionary<string, string> _pageSetupCache = new Dictionary<string, string>();
+
 
         /// <summary>
         /// Генерирует PageSetup'ы и DSD файл на основе выбранных элементов.
@@ -55,7 +55,7 @@ namespace BotPlusAutocadTool.Services
             var db = doc.Database;
             var ed = doc.Editor;
 
-            _pageSetupCache.Clear();
+            var pageSetupCache = new Dictionary<string, string>(StringComparer.Ordinal);
 
             string dwgPathForDsd = GetBestDwgPath(doc);
 
@@ -63,7 +63,7 @@ namespace BotPlusAutocadTool.Services
                 !Path.IsPathRooted(dwgPathForDsd) ||
                 !File.Exists(dwgPathForDsd))
             {
-                ed.WriteMessage("\n[WEAM Error] Чертёж не сохранён или путь не найден. Сохраните DWG перед печатью.\n");
+                ed.WriteMessage("\n[BotPlus AT] Чертёж не сохранён или путь не найден. Сохраните DWG перед печатью.\n");
                 return false;
             }
 
@@ -76,18 +76,13 @@ namespace BotPlusAutocadTool.Services
 
             if (!printItems.Any())
             {
-                ed.WriteMessage("\n[WEAM Warning] Нет выбранных листов для печати.\n");
+                ed.WriteMessage("\n[BotPlus AT] Нет выбранных листов для печати.\n");
                 return false;
             }
 
-            ed.WriteMessage($"\n[WEAM] Подготовка DSD для {printItems.Count} листов...\n");
+            ed.WriteMessage($"\n[BotPlus AT] Подготовка DSD для {printItems.Count} листов...\n");
 
-            // Заголовок DSD
-            var dsd = new StringBuilder(4096);
-            dsd.AppendLine("[DWF6Version]");
-            dsd.AppendLine("Ver=1");
-            dsd.AppendLine("[DWF6MinorVersion]");
-            dsd.AppendLine("MinorVer=1");
+            var entries = new List<DsdSheet>();
 
             int sheetIndex = 1;
             var usedSheetTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -110,7 +105,7 @@ namespace BotPlusAutocadTool.Services
                     string cacheKey =
                         $"{formatName}_{item.BlockId.Handle.Value}_{item.Extents.MinPoint.X:F3}_{item.Extents.MinPoint.Y:F3}_{item.Extents.MaxPoint.X:F3}_{item.Extents.MaxPoint.Y:F3}";
 
-                    if (!_pageSetupCache.ContainsKey(cacheKey))
+                    if (!pageSetupCache.ContainsKey(cacheKey))
                     {
                         PlotSettings ps;
 
@@ -131,11 +126,11 @@ namespace BotPlusAutocadTool.Services
                         }
 
                         ApplyPlotSettingsForItem(ps, item, ed, tr);
-                        _pageSetupCache[cacheKey] = setupName;
+                        pageSetupCache[cacheKey] = setupName;
                     }
                     else
                     {
-                        setupName = _pageSetupCache[cacheKey];
+                        setupName = pageSetupCache[cacheKey];
                     }
 
                     // Уникальное имя листа для DSD
@@ -156,14 +151,7 @@ namespace BotPlusAutocadTool.Services
                         sheetTitle = candidate;
                     }
 
-                    dsd.AppendLine($"[DWF6Sheet:{sheetTitle}]");
-                    dsd.AppendLine($"DWG={dwgPathForDsd}");
-                    dsd.AppendLine("Layout=Model");
-                    dsd.AppendLine($"Setup={setupName}");
-                    dsd.AppendLine($"OriginalSheetPath={dwgPathForDsd}");
-                    dsd.AppendLine("Has Plot Port=0");
-                    dsd.AppendLine("Has3DDWF=0");
-
+                    entries.Add(new DsdSheet(dwgPathForDsd, modelLayout.LayoutName, setupName, sheetTitle));
                     sheetIndex++;
                 }
 
@@ -172,7 +160,7 @@ namespace BotPlusAutocadTool.Services
 
             if (sheetIndex == 1)
             {
-                ed.WriteMessage("\n[WEAM Warning] Не удалось подготовить ни одного листа.\n");
+                ed.WriteMessage("\n[BotPlus AT] Не удалось подготовить ни одного листа.\n");
                 return false;
             }
 
@@ -181,71 +169,17 @@ namespace BotPlusAutocadTool.Services
             string outputFolder = Path.GetDirectoryName(pdfName);
             Directory.CreateDirectory(outputFolder);
 
-            dsd.AppendLine("[Target]");
-            dsd.AppendLine("Type=6"); // Multi-sheet PDF
-            dsd.AppendLine($"DWF={pdfName}");
-            dsd.AppendLine($"OUT={outputFolder}");
-            dsd.AppendLine("PWD=");
-
-            dsd.AppendLine("PromptForDwfName=FALSE");
-            dsd.AppendLine("PrepareForPreview=FALSE");
-            dsd.AppendLine("PreviewSettings=0");
-
-            dsd.AppendLine("[MRU block template]");
-            dsd.AppendLine("MRU=0");
-            dsd.AppendLine("[MRU Local]");
-            dsd.AppendLine("MRU=1");
-            dsd.AppendLine("File0=");
-            dsd.AppendLine("[MRU Sheet List]");
-            dsd.AppendLine("MRU=1");
-            dsd.AppendLine($"File0={dsdPath}");
-
-            dsd.AppendLine("[PdfOptions]");
-            dsd.AppendLine("IncludeHyperlinks=FALSE");
-            dsd.AppendLine("CreateBookmarks=TRUE");
-            dsd.AppendLine("CaptureFontsInDrawing=TRUE");
-            dsd.AppendLine("ConvertTextToGeometry=FALSE");
-            dsd.AppendLine("VectorResolution=1200");
-            dsd.AppendLine("RasterResolution=400");
-
-            dsd.AppendLine("[AutoCAD Block Data]");
-            dsd.AppendLine("IncludeBlockInfo=0");
-            dsd.AppendLine("BlockTmplFilePath=");
-
-            dsd.AppendLine("[SheetSet Properties]");
-            dsd.AppendLine("IsSheetSet=FALSE");
-            dsd.AppendLine("IsHomogeneous=FALSE");
-            dsd.AppendLine("SheetSet Name=");
-            dsd.AppendLine("NoOfCopies=1");
-            dsd.AppendLine("PlotStampOn=FALSE");
-            dsd.AppendLine("ViewFile=FALSE");
-            dsd.AppendLine("JobID=1");
-            dsd.AppendLine("SelectionSetName=");
-            dsd.AppendLine("AcadProfile=");
-            dsd.AppendLine("CategoryName=");
-            dsd.AppendLine("LogFilePath=");
-            dsd.AppendLine("IncludeLayer=TRUE");
-            dsd.AppendLine("LineMerge=FALSE");
-            dsd.AppendLine("CurrentPrecision=");
-            dsd.AppendLine("PromptForDwfName=FALSE");
-            dsd.AppendLine("PwdProtectPublishedDWF=FALSE");
-            dsd.AppendLine("PromptForPwd=FALSE");
-            dsd.AppendLine("RepublishingMarkups=FALSE");
-            dsd.AppendLine("PublishSheetSetMetadata=FALSE");
-            dsd.AppendLine("PublishSheetMetadata=FALSE");
-            dsd.AppendLine("3DDWFOptions=0 1");
-
             try
             {
-                File.WriteAllText(dsdPath, dsd.ToString(), Encoding.Unicode);
-                ed.WriteMessage($"[WEAM] ✓ DSD создан: {dsdPath}\n");
-                ed.WriteMessage($"[WEAM] ✓ PDF будет создан в: {pdfName}\n");
-                ed.WriteMessage($"[WEAM] ✓ Листов: {sheetIndex - 1}, уникальных PageSetup: {_pageSetupCache.Count}\n");
+                DsdFileWriter.Write(dsdPath, pdfName, entries);
+                ed.WriteMessage($"[BotPlus AT] ✓ DSD создан: {dsdPath}\n");
+                ed.WriteMessage($"[BotPlus AT] ✓ PDF будет создан в: {pdfName}\n");
+                ed.WriteMessage($"[BotPlus AT] ✓ Листов: {sheetIndex - 1}, уникальных PageSetup: {pageSetupCache.Count}\n");
                 return true;
             }
             catch (System.Exception ex)
             {
-                ed.WriteMessage($"\n[WEAM Error] Не удалось создать DSD: {ex.Message}\n");
+                ed.WriteMessage($"\n[BotPlus AT] Не удалось создать DSD: {ex.Message}\n");
                 return false;
             }
         }
@@ -273,8 +207,8 @@ namespace BotPlusAutocadTool.Services
                 }
                 else
                 {
-                    exactWidth = Math.Abs(item.Extents.MaxPoint.X - item.Extents.MinPoint.X);
-                    exactHeight = Math.Abs(item.Extents.MaxPoint.Y - item.Extents.MinPoint.Y);
+                    exactWidth = Math.Abs(item.Extents.MaxPoint.X - item.Extents.MinPoint.X) / item.PlotScale;
+                    exactHeight = Math.Abs(item.Extents.MaxPoint.Y - item.Extents.MinPoint.Y) / item.PlotScale;
                 }
 
                 bool isPortrait = !string.IsNullOrWhiteSpace(item.Format) &&
@@ -320,7 +254,7 @@ namespace BotPlusAutocadTool.Services
                 else
                 {
                     var min2d = new Point2d(item.Extents.MinPoint.X, item.Extents.MinPoint.Y);
-                    var max2d = new Point2d(min2d.X + exactWidth, min2d.Y + exactHeight);
+                    var max2d = new Point2d(item.Extents.MaxPoint.X, item.Extents.MaxPoint.Y);
                     psv.SetPlotWindowArea(ps, new Extents2d(min2d, max2d));
                     psv.SetPlotType(ps, Autodesk.AutoCAD.DatabaseServices.PlotType.Window);
                 }
@@ -336,8 +270,8 @@ namespace BotPlusAutocadTool.Services
 
                 if (isStandardExact)
                 {
-                    psv.SetUseStandardScale(ps, true);
-                    psv.SetStdScaleType(ps, StdScaleType.StdScale1To1);
+                    psv.SetUseStandardScale(ps, false);
+                    psv.SetCustomPrintScale(ps, new CustomScale(1, item.PlotScale));
                     psv.SetPlotCentered(ps, false);
 
                     // Начало области печати (внутри полей). Обычно (0,0).
@@ -357,7 +291,7 @@ namespace BotPlusAutocadTool.Services
             }
             catch (System.Exception ex)
             {
-                ed.WriteMessage($"\n[WEAM Error] Лист {item.SheetNumber}: {ex.Message}\n");
+                ed.WriteMessage($"\n[BotPlus AT] Лист {item.SheetNumber}: {ex.Message}\n");
                 throw new InvalidOperationException($"Не удалось подготовить настройки печати листа {item.SheetNumber}.", ex);
             }
         }

@@ -17,7 +17,7 @@ if (!$BundlePath) {
 $BundlePath = (Resolve-Path -LiteralPath $BundlePath).Path
 foreach ($folder in @('2025-2026','2027')) {
     $windows = Join-Path $BundlePath "Contents\Windows\$folder"
-    foreach ($name in @('BotPlusAutocadTool.dll','Newtonsoft.Json.dll','ClosedXML.dll','itext.kernel.dll','itext.bouncy-castle-adapter.dll','BouncyCastle.Cryptography.dll')) {
+    foreach ($name in @('BotPlusAutocadTool.dll','Newtonsoft.Json.dll','itext.kernel.dll','itext.bouncy-castle-adapter.dll','BouncyCastle.Cryptography.dll','ExcelRuntime/BotPlusAutocadTool.ExcelRuntime.dll','ExcelRuntime/ClosedXML.dll')) {
         if (!(Test-Path -LiteralPath (Join-Path $windows $name))) { throw "Incomplete bundle: $folder/$name" }
     }
     foreach ($name in @('accoremgd.dll','acdbmgd.dll','acmgd.dll','AdWindows.dll')) {
@@ -35,4 +35,5 @@ Compress-Archive -LiteralPath $BundlePath -DestinationPath $zip -Force
 $files = @((Join-Path $release "BotPlusAutocadTool-$version-Setup.exe"), $zip)
 $hashes = foreach ($file in $files) { $hash = Get-FileHash -LiteralPath $file -Algorithm SHA256; "$($hash.Hash.ToLowerInvariant())  $([IO.Path]::GetFileName($file))" }
 $hashes | Set-Content -LiteralPath (Join-Path $release 'SHA256SUMS.txt') -Encoding ascii
+$hashes | Set-Content -LiteralPath (Join-Path $release "SHA256SUMS-$version.txt") -Encoding ascii
 Write-Output "Release prepared: $release"

@@ -108,6 +108,21 @@ namespace BotPlusAutocadTool.ViewModels
             }
         }
 
+        private string _outputDirectory = SettingsService.Settings.PlotOutputDirectory;
+        public string OutputDirectory { get => _outputDirectory; set => SetProperty(ref _outputDirectory, value); }
+        public int PlotScaleIndex
+        {
+            get => _service.PlotScale == 100 ? 1 : 0;
+            set
+            {
+                int scale = value == 1 ? 100 : 1;
+                if (_service.PlotScale == scale) return;
+                _service.PlotScale = scale;
+                OnPropertyChanged();
+                LoadData();
+            }
+        }
+
         /// <summary>
         /// Общий чекбокс выбора в заголовке таблицы:
         /// true = выбрать всё, false = снять всё, null = частично выбрано.
@@ -141,14 +156,19 @@ namespace BotPlusAutocadTool.ViewModels
         public ICommand DeselectAllCommand { get; }
 
         public ICommand SetFormatkaCommand { get; }
-        public ICommand AllFormatkiCommand { get; }
         public ICommand SelectFormatkiCommand { get; }
+        public ICommand InsertIndexCommand { get; }
+        public ICommand BrowseOutputCommand { get; }
 
         #endregion
 
-        public BatchPlotViewModel()
+        private readonly Action<Action> _drawingInteraction;
+
+        public BatchPlotViewModel(Action<Action> drawingInteraction = null)
         {
+            _drawingInteraction = drawingInteraction ?? (operation => operation());
             _service = new BatchPlotService();
+            _plotInBackground = SettingsService.Settings.PlotInBackground;
 
             AllFormatNames = _service.GetDefinedFormatNames();
             Items = new ObservableCollection<BatchPlotItem>();
@@ -161,15 +181,45 @@ namespace BotPlusAutocadTool.ViewModels
             SelectAllCommand = new RelayCommand(_ => SelectAll(), _ => !IsBusy && Items.Any());
             DeselectAllCommand = new RelayCommand(_ => DeselectAll(), _ => !IsBusy && Items.Any());
 
-            SetFormatkaCommand = new RelayCommand(_ => ExecuteSetFormatka(), _ => !IsBusy);
+            SetFormatkaCommand = new RelayCommand(_ => _drawingInteraction(ExecuteSetFormatka), _ => !IsBusy);
 
-            AllFormatkiCommand = new RelayCommand(_ => MessageBox.Show("В разработке", "WEAM"), _ => false);
-            SelectFormatkiCommand = new RelayCommand(_ => MessageBox.Show("В разработке", "WEAM"), _ => false);
+            SelectFormatkiCommand = new RelayCommand(_ => _drawingInteraction(ExecuteSelectFormatki), _ => !IsBusy && Items.Any());
+            InsertIndexCommand = new RelayCommand(_ => _drawingInteraction(ExecuteInsertIndex), _ => !IsBusy && Items.Any(i => i.IsSelected));
+            BrowseOutputCommand = new RelayCommand(_ =>
+            {
+                string folder = UI.FolderPicker.Choose(OutputDirectory);
+                if (folder != null) OutputDirectory = folder;
+            }, _ => !IsBusy);
 
             LoadData();
         }
 
         #region Загрузка
+
+        private void ExecuteInsertIndex()
+        {
+            var doc = AcadCoreApp.DocumentManager.MdiActiveDocument;
+            if (doc == null) return;
+            var selected = Items.Where(i => i.IsSelected).ToArray();
+            if (selected.Length == 0) return;
+            try
+            {
+                using (doc.LockDocument())
+                    if (!doc.Database.TileMode) LayoutManager.Current.CurrentLayout = "Model";
+                var point = doc.Editor.GetPoint("\nУкажите точку вставки ведомости в модели: ");
+                if (point.Status != PromptStatus.OK) return;
+                using (doc.LockDocument()) PlotIndexService.Insert(doc.Database, selected,
+                    point.Value.TransformBy(doc.Editor.CurrentUserCoordinateSystem), _service.PlotScale);
+                doc.Editor.Regen();
+                StatusMessage = $"В модель вставлена таблица: {selected.Length} листов.";
+            }
+            catch (SystemException ex)
+            {
+                Infrastructure.PluginLog.Error("Insert drawing index", ex);
+                StatusMessage = "Не удалось вставить таблицу: " + ex.Message;
+                doc.Editor.WriteMessage("\n[BotPlus AT] " + StatusMessage);
+            }
+        }
 
         private void LoadData()
         {
@@ -180,9 +230,7 @@ namespace BotPlusAutocadTool.ViewModels
 
                 var blocks = _service.GetFormatBlocks();
 
-                Items.Clear();
-                foreach (var block in blocks)
-                    Items.Add(block);
+                Items = new ObservableCollection<BatchPlotItem>(blocks);
 
                 if (blocks.Count > 0)
                 {
@@ -199,7 +247,7 @@ namespace BotPlusAutocadTool.ViewModels
             catch (SystemException ex)
             {
                 StatusMessage = $"Ошибка загрузки: {ex.Message}";
-                MessageBox.Show($"Не удалось загрузить блоки:\n\n{ex.Message}", "WEAM - Ошибка",
+                MessageBox.Show($"Не удалось загрузить блоки:\n\n{ex.Message}", "BotPlus AT — ошибка",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
@@ -252,6 +300,27 @@ namespace BotPlusAutocadTool.ViewModels
 
         #region Указать форматку
 
+        private void ExecuteSelectFormatki()
+        {
+            var doc = AcadCoreApp.DocumentManager.MdiActiveDocument;
+            if (doc == null) return;
+            var selection = doc.Editor.GetSelection(new PromptSelectionOptions { MessageForAdding = "\nВыберите форматки для печати: " },
+                new SelectionFilter(new[] { new TypedValue((int)DxfCode.Start, "INSERT") }));
+            if (selection.Status != PromptStatus.OK) return;
+            using (selection.Value)
+            {
+                var ids = new HashSet<ObjectId>(selection.Value.GetObjectIds());
+                foreach (var item in Items) item.IsSelected = ids.Contains(item.BlockId);
+            }
+            RecalcIsAllSelected();
+        }
+
+        protected override void OnDisposing()
+        {
+            foreach (var item in Items) item.PropertyChanged -= OnItemPropertyChanged;
+            RequestClose = null;
+        }
+
         private void ExecuteSetFormatka()
         {
             try
@@ -282,7 +351,7 @@ namespace BotPlusAutocadTool.ViewModels
 
                     if (string.IsNullOrWhiteSpace(newLayer) || string.IsNullOrWhiteSpace(newBlockName))
                     {
-                        MessageBox.Show("Не удалось определить имя блока или слой.", "WEAM",
+                        MessageBox.Show("Не удалось определить имя блока или слой.", "BotPlus AT",
                             MessageBoxButton.OK, MessageBoxImage.Warning);
                         return;
                     }
@@ -297,7 +366,7 @@ namespace BotPlusAutocadTool.ViewModels
             catch (SystemException ex)
             {
                 StatusMessage = "Ошибка выбора форматки";
-                MessageBox.Show($"Ошибка выбора форматки:\n\n{ex.Message}", "WEAM - Ошибка",
+                MessageBox.Show($"Ошибка выбора форматки:\n\n{ex.Message}", "BotPlus AT — ошибка",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -331,7 +400,7 @@ namespace BotPlusAutocadTool.ViewModels
             catch (SystemException ex)
             {
                 StatusMessage = "Ошибка обновления атрибутов";
-                MessageBox.Show($"Ошибка обновления атрибутов:\n\n{ex.Message}", "WEAM - Ошибка",
+                MessageBox.Show($"Ошибка обновления атрибутов:\n\n{ex.Message}", "BotPlus AT — ошибка",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
@@ -352,7 +421,7 @@ namespace BotPlusAutocadTool.ViewModels
             var selected = Items.Where(i => i.IsSelected).ToList();
             if (!selected.Any())
             {
-                MessageBox.Show("Не выбрано ни одного листа", "WEAM",
+                MessageBox.Show("Не выбрано ни одного листа", "BotPlus AT",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
@@ -374,7 +443,7 @@ namespace BotPlusAutocadTool.ViewModels
                           string.Join("\n", invalid.Select(i => $"- Лист {i.SheetNumber}: {i.Status}")) +
                           "\n\nЗапустить публикацию всё равно?";
 
-                var result = MessageBox.Show(msg, "WEAM - Предупреждение",
+                var result = MessageBox.Show(msg, "BotPlus AT — предупреждение",
                     MessageBoxButton.YesNo, MessageBoxImage.Warning);
 
                 if (result == MessageBoxResult.No)
@@ -387,7 +456,7 @@ namespace BotPlusAutocadTool.ViewModels
                 StatusMessage = "Уже выполняется печать/публикация. Дождитесь завершения текущей задачи.";
                 MessageBox.Show("Сейчас уже выполняется печать/публикация (в фоне или в текущем процессе).\n\n" +
                                 "Дождитесь завершения/отмените текущую задачу и повторите.",
-                                "WEAM", MessageBoxButton.OK, MessageBoxImage.Information);
+                                "BotPlus AT", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
@@ -404,6 +473,12 @@ namespace BotPlusAutocadTool.ViewModels
                 string outputDirectory = Path.GetDirectoryName(drawingPath);
                 if (string.IsNullOrEmpty(outputDirectory) || !File.Exists(drawingPath))
                     throw new InvalidOperationException("Сохраните DWG перед публикацией.");
+                if (!string.IsNullOrWhiteSpace(OutputDirectory))
+                {
+                    if (!Path.IsPathFullyQualified(OutputDirectory)) throw new InvalidOperationException("Укажите полный путь к папке PDF.");
+                    outputDirectory = OutputDirectory;
+                }
+                Directory.CreateDirectory(outputDirectory);
                 string drawingName = Path.GetFileNameWithoutExtension(drawingPath);
                 string outputPath = Path.Combine(outputDirectory, drawingName + (separateSheets ? "_Sheets" : "_Binder.pdf"));
                 string jobDirectory = Path.Combine(PluginPaths.UserDataDirectory, "Publish", Guid.NewGuid().ToString("N"));
@@ -417,7 +492,7 @@ namespace BotPlusAutocadTool.ViewModels
                 {
                     StatusMessage = "Ошибка подготовки DSD";
                     MessageBox.Show("Не удалось создать настройки печати (проверь доступность пути DSD и наличие выбранных блоков).",
-                        "WEAM - Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                        "BotPlus AT — ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
 
@@ -426,13 +501,14 @@ namespace BotPlusAutocadTool.ViewModels
                 // 2) BACKGROUNDPLOT строго по ТЗ: 3 если "в фоне", иначе 0
 
                 // 3) Запускаем -PUBLISH
-                bool ok = DsdPublishService.Publish(dsdPath, pdfPath, outputPath, selected, separateSheets, PlotInBackground);
+                bool ok = DsdPublishService.Publish(dsdPath, pdfPath, outputPath, selected, separateSheets, PlotInBackground,
+                    SettingsService.Settings.OpenFolderAfterPlot, SettingsService.Settings.OpenFileAfterPlot);
 
                 if (!ok)
                 {
                     StatusMessage = "Не удалось запустить публикацию DSD";
                     MessageBox.Show("Команда публикации не стартовала.",
-                        "WEAM - Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                        "BotPlus AT — ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
 
@@ -445,7 +521,7 @@ namespace BotPlusAutocadTool.ViewModels
             catch (SystemException ex)
             {
                 StatusMessage = "Ошибка запуска публикации";
-                MessageBox.Show($"Критическая ошибка:\n\n{ex.Message}", "WEAM - Ошибка",
+                MessageBox.Show($"Критическая ошибка:\n\n{ex.Message}", "BotPlus AT — ошибка",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
