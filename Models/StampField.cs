@@ -37,7 +37,7 @@ namespace BotPlusAutocadTool.Models
             set
             {
                 // Если значение пустое или null, заменяем на пробел
-                string newValue = string.IsNullOrEmpty(value) ? " " : value;
+                string newValue = NormalizeEdit(_value, value);
 
                 if (_value != newValue)
                 {
@@ -55,6 +55,13 @@ namespace BotPlusAutocadTool.Models
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
+
+        public static string NormalizeEdit(string previous, string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return " ";
+            // Remove the placeholder on the first keystroke, but preserve spaces while typing words.
+            return string.IsNullOrWhiteSpace(previous) ? value.Trim() : value;
+        }
 
         protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
         {

@@ -28,9 +28,10 @@
                         <CheckBox Content="5. Удалить точки" IsChecked="{Binding Options.DeletePoints}"/>
                         <CheckBox Content="6. Превратить в полилинии и соединить" IsChecked="{Binding Options.JoinLines}"/>
                         <CheckBox Content="7. Удалить короткие линии (меньше 0.01)" IsChecked="{Binding Options.DeleteShortSegments}"/>
-                        <CheckBox Content="8. Сменить цвет на Серый (8)" IsChecked="{Binding Options.SetGrayColor}"/>
+                        <CheckBox Content="8. Сменить цвет на серый (252)" IsChecked="{Binding Options.SetGrayColor}"/>
                         <Border Height="1" Background="{StaticResource ControlBorder}" Margin="0,12"/>
-                        <CheckBox Content="9. Создать единый Блок" IsChecked="{Binding Options.CreateBlock}" FontWeight="SemiBold"/>
+                        <CheckBox x:Name="CreateBlockCheck" Content="9. Создать единый Блок" IsChecked="{Binding Options.CreateBlock}" FontWeight="SemiBold"/>
+                        <CheckBox Content="Базовая точка" IsChecked="{Binding Options.PickBasePoint}" IsEnabled="{Binding IsChecked, ElementName=CreateBlockCheck}" Margin="20,4,0,0" ToolTip="После подтверждения выберите базовую точку будущего блока. Без галочки используется центр геометрии."/>
                     </StackPanel>
                 </Border>
             </Grid>

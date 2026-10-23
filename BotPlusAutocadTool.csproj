@@ -5,7 +5,7 @@
     <TargetFramework Condition="'$(AutoCADVersion)' == '2025' Or '$(AutoCADVersion)' == '2026'">net8.0-windows</TargetFramework>
     <AssemblyName>BotPlusAutocadTool</AssemblyName>
     <RootNamespace>BotPlusAutocadTool</RootNamespace>
-    <Version>1.3.2</Version>
+    <Version>1.3.3</Version>
     <Platforms>x64</Platforms>
     <PlatformTarget>x64</PlatformTarget>
     <UseWPF>true</UseWPF>
@@ -54,5 +54,8 @@
   <Target Name="CopyExcelRuntime" AfterTargets="Build">
     <ItemGroup><ExcelRuntimeFiles Include="$(MSBuildThisFileDirectory)ExcelRuntime/bin/$(Configuration)/net8.0/*.dll;$(MSBuildThisFileDirectory)ExcelRuntime/bin/$(Configuration)/net8.0/*.deps.json"/></ItemGroup>
     <Copy SourceFiles="@(ExcelRuntimeFiles)" DestinationFolder="$(TargetDir)ExcelRuntime" SkipUnchangedFiles="true"/>
+  </Target>
+  <Target Name="CopyLispLibrary" AfterTargets="Build">
+    <Exec Command="pwsh -NoProfile -File &quot;$(MSBuildProjectDirectory)\scripts\Expand-LispLibrary.ps1&quot; -ArchivePath &quot;$(MSBuildProjectDirectory)\Library\AdditionalFunctions.zip&quot; -Destination &quot;$(TargetDir)Assets\AdditionalFunctions&quot;" />
   </Target>
 </Project>

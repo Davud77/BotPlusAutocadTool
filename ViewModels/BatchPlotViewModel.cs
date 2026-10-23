@@ -104,12 +104,23 @@ namespace BotPlusAutocadTool.ViewModels
             {
                 if (_plotInBackground == value) return;
                 _plotInBackground = value;
+                SettingsService.Settings.PlotInBackground = value;
+                SettingsService.Save();
                 OnPropertyChanged();
             }
         }
 
         private string _outputDirectory = SettingsService.Settings.PlotOutputDirectory;
-        public string OutputDirectory { get => _outputDirectory; set => SetProperty(ref _outputDirectory, value); }
+        public string OutputDirectory
+        {
+            get => _outputDirectory;
+            set
+            {
+                if (!SetProperty(ref _outputDirectory, value)) return;
+                SettingsService.Settings.PlotOutputDirectory = value ?? "";
+                SettingsService.Save();
+            }
+        }
         public int PlotScaleIndex
         {
             get => _service.PlotScale == 100 ? 1 : 0;
@@ -118,6 +129,8 @@ namespace BotPlusAutocadTool.ViewModels
                 int scale = value == 1 ? 100 : 1;
                 if (_service.PlotScale == scale) return;
                 _service.PlotScale = scale;
+                SettingsService.Settings.PlotScale = scale;
+                SettingsService.Save();
                 OnPropertyChanged();
                 LoadData();
             }
@@ -168,6 +181,9 @@ namespace BotPlusAutocadTool.ViewModels
         {
             _drawingInteraction = drawingInteraction ?? (operation => operation());
             _service = new BatchPlotService();
+            var filter = UserPreferences.Read("BatchPlotFilter");
+            _service.BlockName = filter.Value<string>("Block") ?? BatchPlotService.DefaultBlockName;
+            _service.LayerName = filter.Value<string>("Layer") ?? BatchPlotService.DefaultLayerName;
             _plotInBackground = SettingsService.Settings.PlotInBackground;
 
             AllFormatNames = _service.GetDefinedFormatNames();
@@ -229,6 +245,10 @@ namespace BotPlusAutocadTool.ViewModels
                 StatusMessage = $"Загрузка блоков... (блок='{_service.BlockName}', слой='{_service.LayerName}')";
 
                 var blocks = _service.GetFormatBlocks();
+                var selection = UserPreferences.Read(SelectionSection);
+                foreach (var block in blocks)
+                    if (selection.TryGetValue(block.BlockId.Handle.ToString(), out var flag) && flag.Type == Newtonsoft.Json.Linq.JTokenType.Boolean)
+                        block.IsSelected = flag.ToObject<bool>();
 
                 Items = new ObservableCollection<BatchPlotItem>(blocks);
 
@@ -260,9 +280,24 @@ namespace BotPlusAutocadTool.ViewModels
         {
             if (e.PropertyName == nameof(BatchPlotItem.IsSelected))
             {
+                if (!_suppressIsAllSelectedRecalc && sender is BatchPlotItem changed && !changed.BlockId.IsNull)
+                {
+                    var selection = UserPreferences.Read(SelectionSection);
+                    selection[changed.BlockId.Handle.ToString()] = changed.IsSelected;
+                    UserPreferences.Write(SelectionSection, selection);
+                }
                 RecalcIsAllSelected();
                 CommandManager.InvalidateRequerySuggested();
             }
+        }
+
+        private string SelectionSection => "BatchPlotSelection:" + (AcadCoreApp.DocumentManager.MdiActiveDocument?.Name ?? "");
+
+        private void SaveSelection()
+        {
+            var selection = UserPreferences.Read(SelectionSection);
+            foreach (var item in Items.Where(i => !i.BlockId.IsNull)) selection[item.BlockId.Handle.ToString()] = item.IsSelected;
+            UserPreferences.Write(SelectionSection, selection);
         }
 
         private void RecalcIsAllSelected()
@@ -358,6 +393,7 @@ namespace BotPlusAutocadTool.ViewModels
 
                     _service.LayerName = newLayer;
                     _service.BlockName = newBlockName;
+                    UserPreferences.Write("BatchPlotFilter", new Newtonsoft.Json.Linq.JObject { ["Block"] = newBlockName, ["Layer"] = newLayer });
                 }
 
                 StatusMessage = $"Фильтр изменён: блок='{_service.BlockName}', слой='{_service.LayerName}'";
@@ -551,6 +587,7 @@ namespace BotPlusAutocadTool.ViewModels
             }
 
             StatusMessage = $"Выбрано: {Items.Count} элементов";
+            SaveSelection();
         }
 
         private void DeselectAll()
@@ -570,6 +607,7 @@ namespace BotPlusAutocadTool.ViewModels
             }
 
             StatusMessage = "Выбор снят";
+            SaveSelection();
         }
 
         #endregion

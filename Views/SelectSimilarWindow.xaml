@@ -8,7 +8,7 @@
     </Window.Resources>
     <DockPanel LastChildFill="True" Background="{DynamicResource WindowBackground}">
         <WrapPanel HorizontalAlignment="Right" Margin="16,8,16,16" DockPanel.Dock="Bottom">
-            <CheckBox Content="Запомнить настройки" IsChecked="{Binding Options.RememberSettings}" VerticalAlignment="Center" Margin="0,0,16,0"/>
+            <TextBlock Text="Настройки сохраняются автоматически" Margin="0,4,12,4" TextWrapping="Wrap"/>
             <Button Content="Сохранить (Выбрать)" Command="{Binding ExecuteCommand}" IsDefault="True"/>
         </WrapPanel>
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0" CanContentScroll="False" Name="DialogViewport">

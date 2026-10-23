@@ -19,7 +19,8 @@ internal static class WindowChecks
             () => new CleanDwgWindow(), () => new CustomerOrderWindow(), () => new PlanPrepWindow(),
             () => new SelectSimilarWindow(), () => new StripTextWindow(), () => new SumLengthWindow { DataContext = new SumLengthViewModel() },
             () => new BatchPlotWindow(), () => new StampWindow(new StampPropsViewModel(new AutoCADService())),
-            () => new SettingsWindow(), () => new AutoNumSettingsWindow(new AutoNumSettingsViewModel { ModeIndex = 3 })
+            () => new SettingsWindow(), () => new AutoNumSettingsWindow(new AutoNumSettingsViewModel { ModeIndex = 3 }),
+            () => new StampTransferWindow(new StampPropsViewModel(new AutoCADService()), new[] { new BotPlusAutocadTool.Models.StampTransferTarget { Name = "Первый чертёж.dwg", Location = @"C:\Проекты\Первый чертёж.dwg" } }, false)
         };
         var results = Path.Combine(Path.GetDirectoryName(typeof(WindowChecks).Assembly.Location), "results");
         Directory.CreateDirectory(results);
@@ -47,6 +48,12 @@ internal static class WindowChecks
                 var narrowEncoder = new PngBitmapEncoder(); narrowEncoder.Frames.Add(BitmapFrame.Create(narrow));
                 using (var narrowFile = File.Create(Path.Combine(results, window.GetType().Name + suffix + "-narrow.png"))) narrowEncoder.Save(narrowFile);
                 var scroll = (window.Content as DockPanel)?.Children.OfType<ScrollViewer>().SingleOrDefault();
+                if (window is StampTransferWindow)
+                {
+                    var table = ((DockPanel)window.Content).Children.OfType<DataGrid>().Single();
+                    if (table.ActualHeight <= 0 || table.ActualWidth <= 0) throw new InvalidOperationException("Target document list is not reachable");
+                    continue; // DataGrid owns its horizontal and vertical scrolling.
+                }
                 if (scroll == null || scroll.VerticalScrollBarVisibility != ScrollBarVisibility.Auto)
                     throw new InvalidOperationException("Missing automatic window scrolling: " + window.Title);
                 if (scroll.ExtentWidth > scroll.ViewportWidth + 1)

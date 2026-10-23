@@ -24,10 +24,12 @@
         </ResourceDictionary>
     </Window.Resources>
     <DockPanel Background="{DynamicResource WindowBackground}">
-        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="16,8,16,16">
+        <WrapPanel DockPanel.Dock="Bottom" HorizontalAlignment="Right" Margin="16,8,16,16">
+            <Button Content="Записать в DWG" Click="WriteDrawing" Margin="0,0,10,0"/>
+            <Button Content="Записать в Word" Click="WriteWord" Margin="0,0,10,0"/>
             <Button Content="Обновить из чертежа" Command="{Binding RefreshCommand}" Margin="0,0,10,0"/>
             <Button Content="Применить" Command="{Binding UpdateCommand}" IsDefault="True"/>
-        </StackPanel>
+        </WrapPanel>
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <Viewbox Stretch="Uniform" StretchDirection="Both" VerticalAlignment="Top" Margin="16">
                 <Grid>

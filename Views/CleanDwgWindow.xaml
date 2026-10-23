@@ -60,7 +60,7 @@
                                 <CheckBox Content="Очистить все (_PURGE)" IsChecked="{Binding Options.PurgeAll}" FontWeight="SemiBold"/>
                                 <CheckBox Content="Проверка ошибок (_AUDIT)" IsChecked="{Binding Options.Audit}"/>
                                 <CheckBox Content="Сохранить документ" IsChecked="{Binding Options.SaveDoc}"/>
-                                <CheckBox Content="Запомнить настройки" IsChecked="{Binding Options.RememberSettings}" Margin="0,10,0,0"/>
+                                <TextBlock Text="Настройки сохраняются автоматически" Margin="0,4,12,4" TextWrapping="Wrap"/>
                             </StackPanel>
                         </GroupBox>
                     </StackPanel>

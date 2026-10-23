@@ -51,6 +51,7 @@ namespace BotPlusAutocadTool.ViewModels
             Options.DeleteShortSegments = val;
             Options.SetGrayColor = val;
             Options.CreateBlock = val;
+            Options.PickBasePoint = val;
 
             var temp = Options;
             Options = null;

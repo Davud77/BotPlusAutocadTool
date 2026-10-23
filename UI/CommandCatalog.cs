@@ -21,7 +21,8 @@ namespace BotPlusAutocadTool.UI
                 new ButtonDefinition("Подготовка\nпланов", "planprep.png", "PLANPREP", "Подготовить выбранные объекты плана по заданным параметрам."),
                 new ButtonDefinition("Таблица\nExcel", "tableedit.png", "WEAM_TABLEEXCEL", "Отредактировать таблицу в XLSX и вернуть изменения в чертёж."),
                 new ButtonDefinition("Экспорт\nExcel", "tableedit.png", "BOTPLUS_EXPORTEXCEL", "Сохранить выбранную TABLE в XLSX."),
-                new ButtonDefinition("Импорт\nExcel", "tableedit.png", "BOTPLUS_IMPORTEXCEL", "Создать TABLE из XLSX или обновить существующую таблицу.")
+                new ButtonDefinition("Импорт\nExcel", "tableedit.png", "BOTPLUS_IMPORTEXCEL", "Создать TABLE из XLSX или обновить существующую таблицу."),
+                new ButtonDefinition("Дополнительные\nфункции ▾", "info.png", "BOTPLUS_ADDITIONAL", "Дополнительные функции по категориям из встроенной библиотеки.")
             }),
             new("Очистка и сброс", new[]
             {

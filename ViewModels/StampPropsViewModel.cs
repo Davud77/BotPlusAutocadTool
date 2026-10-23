@@ -35,21 +35,21 @@ namespace BotPlusAutocadTool.ViewModels
         public string ОбозначениеДокумента
         {
             get => _обозначениеДокумента;
-            set => SetProperty(ref _обозначениеДокумента, value);
+            set => SetProperty(ref _обозначениеДокумента, StampField.NormalizeEdit(_обозначениеДокумента, value));
         }
 
         private string _наименованиеОбъекта;
         public string НаименованиеОбъекта
         {
             get => _наименованиеОбъекта;
-            set => SetProperty(ref _наименованиеОбъекта, value);
+            set => SetProperty(ref _наименованиеОбъекта, StampField.NormalizeEdit(_наименованиеОбъекта, value));
         }
 
         private string _наименованиеУчастка;
         public string НаименованиеУчастка
         {
             get => _наименованиеУчастка;
-            set => SetProperty(ref _наименованиеУчастка, value);
+            set => SetProperty(ref _наименованиеУчастка, StampField.NormalizeEdit(_наименованиеУчастка, value));
         }
 
         public RelayCommand UpdateCommand { get; }
@@ -111,18 +111,29 @@ namespace BotPlusAutocadTool.ViewModels
 
         private void ExecuteUpdate(object parameter)
         {
+            try { _autoCADService.SaveStampProperties(CaptureValues()); }
+            catch (ArgumentException ex) { System.Windows.MessageBox.Show(ex.Message, "BotPlus AT"); }
+        }
+
+        public StampProperties CaptureValues(bool empty = false)
+        {
+            if (empty)
+            {
+                var blank = new StampProperties();
+                foreach (var key in StampSchema.Keys) blank.SetValue(key, " ");
+                return blank;
+            }
             if (new[] { ОбозначениеДокумента, НаименованиеОбъекта, НаименованиеУчастка }
                 .Any(value => (value?.Trim().Length ?? 0) > MaxFieldPartLength * 2))
             {
-                System.Windows.MessageBox.Show("Значение поля штампа не должно превышать 128 символов.", "BotPlusAutocadTool");
-                return;
+                throw new ArgumentException("Значение поля штампа не должно превышать 128 символов.");
             }
             var properties = new StampProperties();
 
             // Собираем данные из словаря
             foreach (var field in FieldsMap.Values)
             {
-                properties.SetValue(field.Key, field.Value);
+                properties.SetValue(field.Key, string.IsNullOrWhiteSpace(field.Value) ? " " : field.Value.Trim());
             }
 
             // Разбиваем объединённые поля обратно на части
@@ -138,7 +149,7 @@ namespace BotPlusAutocadTool.ViewModels
             properties.SetValue("Наименование_участка1", part1);
             properties.SetValue("Наименование_участка2", part2);
 
-            _autoCADService.SaveStampProperties(properties);
+            return properties;
         }
 
         /// <summary>

@@ -16,6 +16,7 @@ namespace BotPlusAutocadTool.UI
         private static void Changed(DependencyObject target, DependencyPropertyChangedEventArgs args)
         {
             if (target is not Window window || !(bool)args.NewValue) return;
+            WindowPreferences.Attach(window);
             window.Initialized += (_, _) => Apply(window);
             window.SourceInitialized += (_, _) => Apply(window);
             window.Activated += (_, _) => Apply(window);

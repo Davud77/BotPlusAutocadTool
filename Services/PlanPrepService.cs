@@ -20,9 +20,11 @@ namespace BotPlusAutocadTool.Services
         private readonly Database _db;
         private readonly Transaction _tr;
         private readonly BlockTableRecord _currentSpace;
+        private readonly Point3d? _basePoint;
 
-        public PlanPrepService(PlanPrepOptions options, Database db, Transaction tr)
+        public PlanPrepService(PlanPrepOptions options, Database db, Transaction tr, Point3d? basePoint = null)
         {
+            _basePoint = basePoint;
             _options = options;
             _db = db;
             _tr = tr;
@@ -352,7 +354,7 @@ namespace BotPlusAutocadTool.Services
             {
                 if (id.IsErased) continue;
                 Entity ent = (Entity)_tr.GetObject(id, OpenMode.ForWrite);
-                ent.ColorIndex = 8;
+                ent.ColorIndex = 252;
             }
         }
 
@@ -377,9 +379,9 @@ namespace BotPlusAutocadTool.Services
                 catch { }
             }
 
-            Point3d center = hasExt ? ext.MinPoint + (ext.MaxPoint - ext.MinPoint) / 2.0 : Point3d.Origin;
+            Point3d center = _basePoint ?? (hasExt ? ext.MinPoint + (ext.MaxPoint - ext.MinPoint) / 2.0 : Point3d.Origin);
 
-            string blkName = "PLAN_PREP_" + DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            string blkName = "PLAN_PREP_" + DateTime.Now.ToString("yyyyMMdd_HHmmss_fffffff");
             BlockTable bt = (BlockTable)_tr.GetObject(_db.BlockTableId, OpenMode.ForWrite);
 
             using (BlockTableRecord btr = new BlockTableRecord())

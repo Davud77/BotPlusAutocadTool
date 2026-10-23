@@ -24,6 +24,8 @@ foreach ($folder in @('2025-2026','2027')) {
         if (Test-Path -LiteralPath (Join-Path $windows $name)) { throw "Autodesk assembly in bundle: $name" }
     }
     if (!(Test-Path -LiteralPath (Join-Path $windows 'Assets\WM_FORMAT.dwg'))) { throw "Format template missing in bundle: $folder" }
+    if (!(Test-Path -LiteralPath (Join-Path $windows 'Assets\AdditionalFunctions\catalog.json'))) { throw "LISP library missing in bundle: $folder" }
+    if (!(Test-Path -LiteralPath (Join-Path $windows 'Assets\AdditionalFunctions\acad_pan\acad_pr\!Подписи.dwg'))) { throw "LISP block dependency missing in bundle: $folder" }
 }
 & (Join-Path $PSScriptRoot 'Collect-Notices.ps1') -BundlePath $BundlePath
 $release = Join-Path $root 'artifacts\release'

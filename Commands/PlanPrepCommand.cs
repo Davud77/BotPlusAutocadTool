@@ -43,12 +43,20 @@ namespace BotPlusAutocadTool.Commands
                 bool? result = AcadApp.ShowModalWindow(window);
                 if (vm.DialogResult != true) return;
 
+                Autodesk.AutoCAD.Geometry.Point3d? basePoint = null;
+                if (vm.Options.CreateBlock && vm.Options.PickBasePoint)
+                {
+                    var picked = ed.GetPoint("\nУкажите базовую точку будущего блока: ");
+                    if (picked.Status != PromptStatus.OK) return;
+                    basePoint = picked.Value.TransformBy(ed.CurrentUserCoordinateSystem);
+                }
+
                 // 3. Выполнение
                 using (doc.LockDocument())
                 {
                     using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
                     {
-                        var service = new PlanPrepService(vm.Options, doc.Database, tr);
+                        var service = new PlanPrepService(vm.Options, doc.Database, tr, basePoint);
 
                         List<ObjectId> ids = new List<ObjectId>();
                         foreach (SelectedObject so in psr.Value)

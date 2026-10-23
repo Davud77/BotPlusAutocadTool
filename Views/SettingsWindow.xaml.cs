@@ -19,6 +19,20 @@ namespace BotPlusAutocadTool.Views
         {
             InitializeComponent();
             DataContext = JsonConvert.DeserializeObject<EditableSettings>(JsonConvert.SerializeObject(SettingsService.Settings));
+            AddHandler(System.Windows.Controls.Primitives.ToggleButton.CheckedEvent, new RoutedEventHandler(SaveCheckbox), true);
+            AddHandler(System.Windows.Controls.Primitives.ToggleButton.UncheckedEvent, new RoutedEventHandler(SaveCheckbox), true);
+        }
+        private void SaveCheckbox(object sender, RoutedEventArgs args)
+        {
+            if (args.OriginalSource is not CheckBox checkbox) return;
+            string path = checkbox.GetBindingExpression(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty)?.ParentBinding.Path?.Path;
+            if (path == null) return;
+            var property = typeof(PluginSettings).GetProperty(path);
+            if (property?.PropertyType != typeof(bool)) return;
+            bool value = checkbox.IsChecked == true;
+            if ((bool)property.GetValue(SettingsService.Settings) == value) return;
+            property.SetValue(SettingsService.Settings, value);
+            SettingsService.Save();
         }
         private void ResetClick(object sender, RoutedEventArgs e) => DataContext = new EditableSettings();
         private void BrowseOutputClick(object sender, RoutedEventArgs e)

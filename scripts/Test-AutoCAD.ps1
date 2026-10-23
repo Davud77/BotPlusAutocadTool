@@ -2,6 +2,8 @@ param(
     [ValidateSet(2026,2027)][int]$Year = 2026,
     [switch]$Benchmark,
     [switch]$Plot,
+    [switch]$Word,
+    [switch]$Library,
     [string]$Label = 'current',
     [string]$PluginPath
 )
@@ -21,11 +23,15 @@ if (!$PluginPath) {
 dotnet build (Join-Path $root 'tests\AutoCADSmoke\AutoCADSmoke.csproj') -c Release "-p:AutoCADVersion=$Year" -v quiet *> (Join-Path $reports "build-smoke-$Year-$Label.log")
 if ($LASTEXITCODE -ne 0) { throw 'Smoke module build failed; see validation log.' }
 $testDll = Join-Path $root "tests\AutoCADSmoke\bin\Release\$framework\AutoCADSmoke.dll"
-$command = if ($Benchmark) { 'BOTPLUS_BENCHMARK' } elseif ($Plot) { 'BOTPLUS_PLOTTEST' } else { 'BOTPLUS_SMOKETEST' }
+$command = if ($Library) { 'BOTPLUS_LIBRARYSETUP' } elseif ($Word) { 'BOTPLUS_WORDTRANSFERTEST' } elseif ($Benchmark) { 'BOTPLUS_BENCHMARK' } elseif ($Plot) { 'BOTPLUS_PLOTTEST' } else { 'BOTPLUS_SMOKETEST' }
 $script = Join-Path $reports "test-$Year-$Label.scr"
 $log = Join-Path $reports "test-$Year-$Label.log"
 # The temporary Core Console profile cannot change SECURELOAD in the user's profile.
 $lines = @('SECURELOAD','0','_NETLOAD',('"'+$PluginPath+'"'),'_NETLOAD',('"'+$testDll+'"'),$command,'_QUIT','_Y','')
+if ($Library) {
+    $dispatch = (Join-Path $reports 'library-dispatch.lsp').Replace('\','/')
+    $lines = @('SECURELOAD','0','_NETLOAD',('"'+$PluginPath+'"'),'_NETLOAD',('"'+$testDll+'"'),$command,('(load "'+$dispatch+'")'),'(c:bp-library-insert)','0,0','BOTPLUS_LIBRARYVERIFY','_QUIT','_Y','')
+}
 [IO.File]::WriteAllLines($script, $lines, [Text.UTF8Encoding]::new($false))
 $inputDrawing = Join-Path $reports "input-$Year-$Label.dwg"
 if ($Plot) { $inputDrawing = Join-Path $reports "input-$Year-$Label-чертёж-图纸.dwg" }
@@ -44,7 +50,7 @@ $text = [IO.File]::ReadAllText($log, [Text.Encoding]::Unicode)
 # Native wide stdout and PowerShell can leave mixed CR/LF code units in redirected logs.
 $text = $text.Replace([string][char]0x0A0D, '').Replace([string][char]0x0D00, '')
 [IO.File]::WriteAllText($log, $text, [Text.UTF8Encoding]::new($false))
-$marker = if ($Benchmark) { 'BOTPLUS_PERF_PASS:' } elseif ($Plot) { 'BOTPLUS_PLOT_PASS:' } else { 'BOTPLUS_SMOKE_PASS:' }
-if ($text -notmatch $marker -or $text -match 'BOTPLUS_(SMOKE|PERF|PLOT)_FAIL:') { throw "Native checks failed: $log" }
+$marker = if ($Library) { 'LIBRARY_PASS:' } elseif ($Word) { 'WORD_TRANSFER_PASS:' } elseif ($Benchmark) { 'BOTPLUS_PERF_PASS:' } elseif ($Plot) { 'BOTPLUS_PLOT_PASS:' } else { 'BOTPLUS_SMOKE_PASS:' }
+if ($text -notmatch $marker -or $text -match '(BOTPLUS_(SMOKE|PERF|PLOT)|WORD_TRANSFER|LIBRARY)_FAIL:') { throw "Native checks failed: $log" }
 $text.Split("`n") | Where-Object { $_ -match 'PASS:' } | ForEach-Object { $_.Trim() }
 Write-Output "Native report: $log"

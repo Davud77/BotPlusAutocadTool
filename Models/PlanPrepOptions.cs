@@ -20,5 +20,6 @@ namespace BotPlusAutocadTool.Models
         public bool DeleteShortSegments { get; set; } = true;   // 7. Удалить короткие
         public bool SetGrayColor { get; set; } = true;          // 8. Цвет в серый
         public bool CreateBlock { get; set; } = true;           // 9. Создать блок
+        public bool PickBasePoint { get; set; }
     }
 }

@@ -1,4 +1,4 @@
-BotPlusAutocadTool 1.3.2 — предварительный выпуск для AutoCAD 2025–2027.
+BotPlusAutocadTool 1.3.3 — предварительный выпуск для AutoCAD 2025–2027.
 
 Перед установкой закройте AutoCAD и Core Console. Плагин устанавливается в отдельный bundle; старые WM/WEAM bundle автоматически не удаляются.
 

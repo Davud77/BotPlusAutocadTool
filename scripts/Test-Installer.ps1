@@ -24,6 +24,7 @@ function Run-TestInstall($logName, $executable = $InstallerPath) {
         if (!(Test-Path -LiteralPath (Join-Path $installPath "Contents\Windows\$folder\BotPlusAutocadTool.dll"))) { throw "Missing installed DLL: $folder" }
         if ($executable -eq $InstallerPath -and !(Test-Path -LiteralPath (Join-Path $installPath "Contents\Windows\$folder\Assets\WM_FORMAT.dwg"))) { throw "Missing installed format template: $folder" }
         if ($executable -eq $InstallerPath) {
+            if (!(Test-Path -LiteralPath (Join-Path $installPath "Contents\Windows\$folder\Assets\AdditionalFunctions\catalog.json"))) { throw "Missing installed LISP catalogue: $folder" }
             foreach ($dependency in @('BotPlusAutocadTool.ExcelRuntime.dll','ClosedXML.dll','DocumentFormat.OpenXml.dll')) {
                 if (!(Test-Path -LiteralPath (Join-Path $installPath "Contents\Windows\$folder\ExcelRuntime\$dependency"))) { throw "Missing isolated XLSX dependency: $folder/$dependency" }
             }
@@ -36,7 +37,7 @@ function Run-TestInstall($logName, $executable = $InstallerPath) {
         $dllVersion = [Diagnostics.FileVersionInfo]::GetVersionInfo($dllPath).ProductVersion.Split('+')[0]
         if ($dllVersion -ne $installedManifest.ApplicationPackage.AppVersion) { throw 'Installed DLL and manifest versions differ.' }
     }
-    if ($executable -eq $InstallerPath -and !(Test-Path -LiteralPath (Join-Path $installPath 'Documentation\docs\USAGE-1.3.2.md'))) {
+    if ($executable -eq $InstallerPath -and !(Test-Path -LiteralPath (Join-Path $installPath 'Documentation\docs\USAGE-1.3.3.md'))) {
         throw 'Candidate documentation missing.'
     }
 }
