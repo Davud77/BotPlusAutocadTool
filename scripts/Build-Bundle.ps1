@@ -17,7 +17,8 @@ foreach ($spec in $specs) {
         if (!(Test-Path -LiteralPath (Join-Path $spec.Path $name))) { throw "Missing AutoCAD $($spec.Year) reference: $name in $($spec.Path)" }
     }
 }
-$stageRoot = Join-Path $projectRoot ('artifacts\staging\' + [Guid]::NewGuid().ToString('N'))
+# Keep compiler source paths short for the original library's long asset names.
+$stageRoot = Join-Path ([IO.Path]::GetTempPath()) ('BotPlusBuild-' + [Guid]::NewGuid().ToString('N').Substring(0,8))
 $stageBundle = Join-Path $stageRoot 'BotPlusAutocadTool.bundle'
 New-Item -ItemType Directory -Path $stageBundle -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $projectRoot 'Bundle\BotPlusAutocadTool.bundle\PackageContents.xml') -Destination $stageBundle
