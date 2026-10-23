@@ -28,9 +28,13 @@
                         <TextBlock x:Name="VersionText" Foreground="{DynamicResource TextPrimary}" Margin="0,3,0,0"/>
                     </StackPanel>
                 </StackPanel>
-                <TextBlock Grid.Row="1" Text="Инструменты для работы с чертежами AutoCAD" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap" Margin="0,0,0,22"/>
+                <StackPanel Grid.Row="1" Margin="0,0,0,16">
+                    <TextBlock Text="Инструменты для работы с чертежами AutoCAD" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                    <Button Content="Настройки" Click="OpenSettings" HorizontalAlignment="Left" Padding="12,8" ToolTip="Масштаб форматки, печать, единицы измерения и обновления."/>
+                </StackPanel>
                 <GroupBox Grid.Row="2" Header="Обновления">
                     <StackPanel>
+                        <Button Content="Проверить обновления" Click="CheckUpdates" HorizontalAlignment="Left" Padding="12,8" Margin="0,0,0,10"/>
                         <CheckBox x:Name="AutoUpdateCheck" Content="Проверять обновления автоматически" Checked="UpdateSettingsChanged" Unchecked="UpdateSettingsChanged"/>
                         <CheckBox x:Name="PrereleaseUpdateCheck" Content="Включать предварительные выпуски" Checked="UpdateSettingsChanged" Unchecked="UpdateSettingsChanged"/>
                         <TextBlock Text="При запуске AutoCAD и затем раз в сутки. Установка — по вашему выбору." Foreground="{DynamicResource TextPrimary}" FontSize="12" TextWrapping="Wrap" Margin="0,10,0,2"/>

@@ -36,7 +36,7 @@ function Run-TestInstall($logName, $executable = $InstallerPath) {
         $dllVersion = [Diagnostics.FileVersionInfo]::GetVersionInfo($dllPath).ProductVersion.Split('+')[0]
         if ($dllVersion -ne $installedManifest.ApplicationPackage.AppVersion) { throw 'Installed DLL and manifest versions differ.' }
     }
-    if ($executable -eq $InstallerPath -and !(Test-Path -LiteralPath (Join-Path $installPath 'Documentation\docs\USAGE-1.3.1.md'))) {
+    if ($executable -eq $InstallerPath -and !(Test-Path -LiteralPath (Join-Path $installPath 'Documentation\docs\USAGE-1.3.2.md'))) {
         throw 'Candidate documentation missing.'
     }
 }

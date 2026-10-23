@@ -24,6 +24,17 @@ public sealed class PlotChecks
             {
             var firstId = FormatInsertService.Insert(document.Database, definition, new Autodesk.AutoCAD.Geometry.Point3d(0, scale * 1000, 0), scale);
             var secondId = FormatInsertService.Insert(document.Database, definition, new Autodesk.AutoCAD.Geometry.Point3d(scale * 1000, scale * 1000, 0), scale);
+            using (var tr = document.Database.TransactionManager.StartTransaction())
+            {
+                foreach (var pair in new[] { (firstId, "Форма 5"), (secondId, "Форма 6") })
+                {
+                    var block = (BlockReference)tr.GetObject(pair.Item1, OpenMode.ForWrite);
+                    var form = block.DynamicBlockReferencePropertyCollection.Cast<DynamicBlockReferenceProperty>()
+                        .Single(p => p.GetAllowedValues().Any(value => Equals(value, pair.Item2)));
+                    form.Value = pair.Item2;
+                }
+                tr.Commit();
+            }
             var items = new BatchPlotService { PlotScale = scale }.GetFormatBlocks().Where(item => item.BlockId == firstId || item.BlockId == secondId).ToList();
             if (items.Count == 0) throw new InvalidOperationException("No frames detected after inserting WM_FORMAT");
             if (items.Any(item => item.FormatDefinition?.Name != "A3")) throw new InvalidOperationException("Scaled frame format was not detected");

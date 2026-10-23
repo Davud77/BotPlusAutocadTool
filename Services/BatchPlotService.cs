@@ -199,11 +199,12 @@ namespace BotPlusAutocadTool.Services
 
                         matched++;
 
-                        // Получаем границы блока
+                        // Размер листа задаёт рамка, а не атрибуты меняющегося штампа.
                         Extents3d ext;
                         try
                         {
-                            ext = blk.GeometricExtents;
+                            if (!BlockExportStage1Service.TryGetFrameExtents(tr, blk, out ext))
+                                ext = blk.GeometricExtents;
                         }
                         catch (SystemException ex)
                         {

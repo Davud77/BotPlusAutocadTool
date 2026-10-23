@@ -19,8 +19,8 @@ public sealed class ClassicCheck
             dynamic app = AcadApp.AcadApplication;
             dynamic menus = app.MenuGroups.Item(0).Menus, bars = app.MenuGroups.Item(0).Toolbars;
             dynamic menu = menus.Item(CommandCatalog.TabTitle), bar = bars.Item(CommandCatalog.TabTitle);
-            if ((int)menu.Count != 5 || (int)bar.Count != 24 || !(bool)bar.Visible || !(bool)menu.OnMenuBar) throw new InvalidOperationException("Unexpected menu/toolbar state");
-            File.AppendAllText(Report, "PASS: desktop AutoCAD 2026; menu, five submenus, 20 toolbar buttons, separators, visibility; no duplicates on repeated initialization.\n");
+            if ((int)menu.Count != 4 || (int)bar.Count != 20 || !(bool)bar.Visible || !(bool)menu.OnMenuBar) throw new InvalidOperationException("Unexpected menu/toolbar state");
+            File.AppendAllText(Report, "PASS: desktop AutoCAD 2026; menu, four submenus, 17 toolbar buttons, separators, visibility; no duplicates on repeated initialization.\n");
             AcadApp.DocumentManager.MdiActiveDocument.Editor.WriteMessage("\nBOTPLUS_DESKTOP_PASS: menu and toolbar visible. Cleanup: BOTPLUS_DESKTOPFINISH.\n");
         }
         catch (System.Exception ex) { File.AppendAllText(Report, "FAIL: " + ex + "\n"); AcadApp.ShowAlertDialog(ex.ToString()); }

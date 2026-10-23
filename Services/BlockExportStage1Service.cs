@@ -349,6 +349,20 @@ namespace BotPlusAutocadTool.Services
             return true;
         }
 
+        /// <summary>Границы рамки в WCS, без атрибутов и геометрии штампа.</summary>
+        public static bool TryGetFrameExtents(Transaction tr, BlockReference block, out Extents3d extents)
+        {
+            extents = default;
+            // BlockTableRecord is the evaluated anonymous definition for a dynamic block.
+            var definition = (BlockTableRecord)tr.GetObject(block.BlockTableRecord, OpenMode.ForRead);
+            if (!TryFindFrameInBlockDefinition(tr, definition, out var frame)) return false;
+            var first = frame.PointsLocal[0].TransformBy(block.BlockTransform);
+            extents = new Extents3d(first, first);
+            foreach (var point in frame.PointsLocal)
+                extents.AddPoint(point.TransformBy(block.BlockTransform));
+            return true;
+        }
+
         private enum FrameKind
         {
             Polyline,
@@ -371,6 +385,8 @@ namespace BotPlusAutocadTool.Services
 
             foreach (ObjectId id in btr)
             {
+                if (id.IsErased || !(tr.GetObject(id, OpenMode.ForRead) is Entity entity) || !entity.Visible)
+                    continue;
                 if (id.ObjectClass.IsDerivedFrom(RXObject.GetClass(typeof(Polyline))))
                 {
                     var pl = tr.GetObject(id, OpenMode.ForRead) as Polyline;

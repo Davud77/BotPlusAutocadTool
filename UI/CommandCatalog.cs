@@ -34,17 +34,11 @@ namespace BotPlusAutocadTool.UI
                 new ButtonDefinition("Штамп", "stamp.png", "WEAM_STAMP", "Заполнить пользовательские свойства чертежа для штампа."),
                 new ButtonDefinition("Вставить\nформатку", "wplot.png", "BOTPLUS_INSERTFORMAT", "Вставить динамический блок WM_FORMAT с атрибутами."),
                 new ButtonDefinition("Печать", "wplot.png", "WEAM_BATCHPLOT", "Выбрать форматки и выпустить PDF со сшивкой или по листам."),
-                new ButtonDefinition("Подготовить\nвсе блоки", "wplot.png", "WEAM_BLOCKS_STAGE1", "Подготовить настройки печати A4 и DSD по старому сценарию."),
                 new ButtonDefinition("Сформировать\nзаказчику", "dwgexport.png", "WEAM_CUSTOMERORDER", "Подготовить чертёж или отдельную копию для передачи заказчику.")
             }),
-            new("Справка", new[]
+            new("Сервис", new[]
             {
-                new ButtonDefinition("О программе", "info.png", "WEAM_INFO", "Версия, параметры обновлений и сведения о плагине."),
-                new ButtonDefinition("Проверить\nобновления", "info.png", "BOTPLUS_CHECKUPDATES", "Проверить наличие новой версии на GitHub.")
-            }),
-            new("Настройки", new[]
-            {
-                new ButtonDefinition("Настройки", "info.png", "BOTPLUS_SETTINGS", "Масштаб форматки, печать, единицы измерения и обновления.")
+                new ButtonDefinition("Сервис", "info.png", "WEAM_INFO", "Настройки, проверка обновлений и справка о плагине.")
             })
         };
     }

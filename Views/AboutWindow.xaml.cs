@@ -15,6 +15,7 @@ namespace BotPlusAutocadTool.Views
         public AboutWindow()
         {
             InitializeComponent();
+            Title = "BotPlus AT — сервис и справка";
             var version = Assembly.GetExecutingAssembly().GetName().Version;
             VersionText.Text = $"Версия {version.Major}.{version.Minor}.{version.Build}";
             AutoUpdateCheck.IsChecked = SettingsService.Settings.AutoCheckUpdates;
@@ -31,6 +32,16 @@ namespace BotPlusAutocadTool.Views
         }
 
         private void OpenProject(object sender, RoutedEventArgs args) => Open("https://github.com/Davud77/BotPlusAutocadTool");
+        private void OpenSettings(object sender, RoutedEventArgs args)
+        {
+            new SettingsWindow { Owner = this }.ShowDialog();
+            // Settings may have changed in the child dialog.
+            _settingsLoaded = false;
+            AutoUpdateCheck.IsChecked = SettingsService.Settings.AutoCheckUpdates;
+            PrereleaseUpdateCheck.IsChecked = SettingsService.Settings.IncludePrereleaseUpdates;
+            _settingsLoaded = true;
+        }
+        private void CheckUpdates(object sender, RoutedEventArgs args) => UpdateCheckService.Check(true);
         private void CloseWindow(object sender, RoutedEventArgs args) => Close();
         private void OpenLogs(object sender, RoutedEventArgs args)
         {
