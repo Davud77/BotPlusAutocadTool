@@ -6,6 +6,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
 $projectFile = Join-Path $projectRoot 'BotPlusAutocadTool.csproj'
+& (Join-Path $PSScriptRoot 'Build-PdfPlotter.ps1')
 $specs = @(
     @{ Year = 2025; Framework = 'net8.0-windows'; Path = $AutoCAD2025Path; Folder = '2025-2026' },
     @{ Year = 2027; Framework = 'net10.0-windows'; Path = $AutoCAD2027Path; Folder = '2027' }

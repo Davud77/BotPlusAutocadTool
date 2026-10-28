@@ -69,6 +69,7 @@ namespace BotPlusAutocadTool.Views
             settings.PlotScale = edited.PlotScale;
             settings.PlotOutputDirectory = edited.PlotOutputDirectory?.Trim() ?? "";
             settings.PlotInBackground = edited.PlotInBackground;
+            settings.KeepExistingPdfFiles = edited.KeepExistingPdfFiles;
             settings.OpenFolderAfterPlot = edited.OpenFolderAfterPlot;
             settings.OpenFileAfterPlot = edited.OpenFileAfterPlot;
             settings.ScaleNumerator = edited.ScaleNumerator; settings.ScaleDenominator = edited.ScaleDenominator;

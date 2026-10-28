@@ -8,6 +8,9 @@ namespace BotPlusAutocadTool.Infrastructure
     internal static class AtomicFile
     {
         public static void WriteAllText(string path, string content)
+            => WriteAllBytes(path, new UTF8Encoding(false).GetBytes(content));
+
+        public static void WriteAllBytes(string path, byte[] bytes)
         {
             var fullPath = Path.GetFullPath(path);
             Directory.CreateDirectory(Path.GetDirectoryName(fullPath));
@@ -16,7 +19,6 @@ namespace BotPlusAutocadTool.Infrastructure
             {
                 using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
                 {
-                    var bytes = new UTF8Encoding(false).GetBytes(content);
                     stream.Write(bytes, 0, bytes.Length);
                     stream.Flush(flushToDisk: true);
                 }

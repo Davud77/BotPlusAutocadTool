@@ -3,6 +3,14 @@ using Newtonsoft.Json;
 using System.Diagnostics;
 using System.Reflection;
 
+if (args.Length > 0 && args[0] == "--download-live")
+{
+    string json = File.ReadAllText(args[1]);
+    var update = ReleaseVersion.FindUpdate(json, new Version(1,0,0)) ?? throw new Exception("No published installer");
+    string path = await UpdateDownloadService.DownloadAsync(update, args[2], null, CancellationToken.None);
+    Console.WriteLine("LIVE_DOWNLOAD_PASS: " + update.Tag + "; " + path + "; " + new FileInfo(path).Length + " bytes; verified SHA-256");
+    return;
+}
 if (args.Length > 0 && args[0] == "--live")
 {
     await UpdateFlowChecks.Live(args[1]);
@@ -68,6 +76,7 @@ if (System.Windows.MessageBox.Shown != 0) throw new Exception("Background failur
 Console.WriteLine("PASS: offline GitHub is contained; unexpected Idle failure unsubscribes without JIT dialogs.");
 Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.ThrowOnRead = false;
 UpdateFlowChecks.Run();
+await DownloadChecks.Run();
 
 static void TestSettings(string scenario)
 {
@@ -93,13 +102,15 @@ static void TestSettings(string scenario)
     if (scenario == "invalid-values" && (settings.ScaleDenominator != 1 || settings.LengthUnit != 0 || settings.AreaUnit != 0))
         throw new Exception("Invalid persisted settings were not normalized");
     settings.ScaleNumerator = 7;
+    if (settings.KeepExistingPdfFiles) throw new Exception("Legacy settings must keep replacement as the default");
+    settings.KeepExistingPdfFiles = true;
     if (settings.OpenFolderAfterPlot || settings.OpenFileAfterPlot) throw new Exception("New post-print actions changed legacy defaults");
     settings.OpenFolderAfterPlot = true; settings.OpenFileAfterPlot = true;
     SettingsService.Save();
     if (scenario != "unavailable")
     {
         var restored = JsonConvert.DeserializeObject<PluginSettings>(File.ReadAllText(Path.Combine(root, "settings.json")))!;
-        if (restored.ScaleNumerator != 7 || !restored.OpenFolderAfterPlot || !restored.OpenFileAfterPlot) throw new Exception("Settings save failed");
+        if (restored.ScaleNumerator != 7 || !restored.OpenFolderAfterPlot || !restored.OpenFileAfterPlot || !restored.KeepExistingPdfFiles) throw new Exception("Settings save failed");
     }
     Console.WriteLine("PASS: settings " + scenario + ", defaults/save/legacy JSON compatibility.");
 }

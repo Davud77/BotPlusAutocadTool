@@ -36,7 +36,9 @@ namespace BotPlusAutocadTool.Services
                 {
                     data.DestinationName = pdf;
                     data.ProjectPath = Path.GetDirectoryName(Path.GetFullPath(pdf));
-                    data.SheetType = SheetType.MultiPdf;
+                    // Preserve each page setup's device. PDF mode in -PUBLISH
+                    // overrides it with the user's PDF preset and can clip long media.
+                    data.SheetType = SheetType.OriginalDevice;
                     data.NoOfCopies = 1;
                     data.SetDsdEntryCollection(entries);
                     data.WriteDsd(temporary);
@@ -62,6 +64,7 @@ namespace BotPlusAutocadTool.Services
                     else if (lines[line].StartsWith("OUT=", StringComparison.Ordinal)) lines[line] = "OUT=" + Path.GetDirectoryName(Path.GetFullPath(pdf));
                 }
                 File.WriteAllLines(temporary, lines, Encoding.Unicode);
+                File.AppendAllText(temporary, "[PdfOptions]\nIncludeHyperlinks=TRUE\nCreateBookmarks=TRUE\nCaptureFontsInDrawing=TRUE\nConvertTextToGeometry=FALSE\nVectorResolution=600\nRasterResolution=400\n", Encoding.Unicode);
                 using (var verify = new DsdData())
                 {
                     verify.ReadDsd(temporary);

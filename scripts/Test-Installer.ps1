@@ -2,8 +2,12 @@ param([Parameter(Mandatory=$true)][string]$InstallerPath, [string]$PreviousInsta
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $existing = Get-ItemProperty -LiteralPath 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{98BED5F2-3CAB-47DD-8344-E681FEA048DB}_is1' -ErrorAction SilentlyContinue
-if ($existing.InstallLocation -and !$existing.InstallLocation.StartsWith((Join-Path $root 'artifacts\installer-test\'), [StringComparison]::OrdinalIgnoreCase)) { throw 'A real per-user installation exists; isolated test will not overwrite its registration.' }
-$testRoot = Join-Path $root ('artifacts\installer-test\' + [Guid]::NewGuid().ToString('N'))
+$temporaryTestPrefix = Join-Path ([IO.Path]::GetTempPath()) 'BotPlusInstallerTest-'
+if ($existing.InstallLocation -and
+    !$existing.InstallLocation.StartsWith((Join-Path $root 'artifacts\installer-test\'), [StringComparison]::OrdinalIgnoreCase) -and
+    !$existing.InstallLocation.StartsWith($temporaryTestPrefix, [StringComparison]::OrdinalIgnoreCase)) { throw 'A real per-user installation exists; isolated test will not overwrite its registration.' }
+# Keep long library asset paths below the installer's Windows path limit.
+$testRoot = $temporaryTestPrefix + [Guid]::NewGuid().ToString('N').Substring(0,8)
 $installPath = Join-Path $testRoot 'BotPlusAutocadTool.bundle'
 New-Item -ItemType Directory -Path $testRoot -Force | Out-Null
 $sentinel = Join-Path $testRoot 'settings-outside-bundle.json'
@@ -24,6 +28,9 @@ function Run-TestInstall($logName, $executable = $InstallerPath) {
         if (!(Test-Path -LiteralPath (Join-Path $installPath "Contents\Windows\$folder\BotPlusAutocadTool.dll"))) { throw "Missing installed DLL: $folder" }
         if ($executable -eq $InstallerPath -and !(Test-Path -LiteralPath (Join-Path $installPath "Contents\Windows\$folder\Assets\WM_FORMAT.dwg"))) { throw "Missing installed format template: $folder" }
         if ($executable -eq $InstallerPath) {
+            foreach ($plotter in @('BotPlus PDF.pc3', 'PMP Files\BotPlus PDF.pmp')) {
+                if (!(Test-Path -LiteralPath (Join-Path $installPath "Contents\Windows\$folder\Assets\Plotters\$plotter"))) { throw "Missing installed PDF plotter: $folder/$plotter" }
+            }
             if (!(Test-Path -LiteralPath (Join-Path $installPath "Contents\Windows\$folder\Assets\AdditionalFunctions\catalog.json"))) { throw "Missing installed LISP catalogue: $folder" }
             foreach ($dependency in @('BotPlusAutocadTool.ExcelRuntime.dll','ClosedXML.dll','DocumentFormat.OpenXml.dll')) {
                 if (!(Test-Path -LiteralPath (Join-Path $installPath "Contents\Windows\$folder\ExcelRuntime\$dependency"))) { throw "Missing isolated XLSX dependency: $folder/$dependency" }
@@ -37,7 +44,7 @@ function Run-TestInstall($logName, $executable = $InstallerPath) {
         $dllVersion = [Diagnostics.FileVersionInfo]::GetVersionInfo($dllPath).ProductVersion.Split('+')[0]
         if ($dllVersion -ne $installedManifest.ApplicationPackage.AppVersion) { throw 'Installed DLL and manifest versions differ.' }
     }
-    if ($executable -eq $InstallerPath -and !(Test-Path -LiteralPath (Join-Path $installPath 'Documentation\docs\USAGE-1.3.3.md'))) {
+    if ($executable -eq $InstallerPath -and !(Test-Path -LiteralPath (Join-Path $installPath 'Documentation\docs\USAGE-1.4.md'))) {
         throw 'Candidate documentation missing.'
     }
 }

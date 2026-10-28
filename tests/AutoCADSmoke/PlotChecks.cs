@@ -62,6 +62,7 @@ public sealed class PlotChecks
             AcadApp.SetSystemVariable("FILEDIA", 0);
             using var data = new DsdData();
             data.ReadDsd(dsd);
+            data.SheetType = SheetType.MultiPdf;
             var plotter = PlotConfigManager.SetCurrentConfig("DWG To PDF.pc3");
             AcadApp.Publisher.PublishExecute(data, plotter);
             if (!File.Exists(pdf) || new FileInfo(pdf).Length == 0) throw new InvalidOperationException("Native PDF was not created");

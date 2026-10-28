@@ -15,7 +15,8 @@ internal static class WindowChecks
     {
         var factories = new Func<Window>[]
         {
-            () => new AboutWindow(), () => new AutoNumSettingsWindow(new AutoNumSettingsViewModel()),
+            () => new AboutWindow(), () => new UpdateDownloadWindow(ReleaseVersion.FindUpdate("[{\"tag_name\":\"v1.4\",\"html_url\":\"https://github.com/Davud77/BotPlusAutocadTool/releases/tag/v1.4\"}]", new Version(1,3,3))),
+            () => new AutoNumSettingsWindow(new AutoNumSettingsViewModel()),
             () => new CleanDwgWindow(), () => new CustomerOrderWindow(), () => new PlanPrepWindow(),
             () => new SelectSimilarWindow(), () => new StripTextWindow(), () => new SumLengthWindow { DataContext = new SumLengthViewModel() },
             () => new BatchPlotWindow(), () => new StampWindow(new StampPropsViewModel(new AutoCADService())),
@@ -48,6 +49,18 @@ internal static class WindowChecks
                 var narrowEncoder = new PngBitmapEncoder(); narrowEncoder.Frames.Add(BitmapFrame.Create(narrow));
                 using (var narrowFile = File.Create(Path.Combine(results, window.GetType().Name + suffix + "-narrow.png"))) narrowEncoder.Save(narrowFile);
                 var scroll = (window.Content as DockPanel)?.Children.OfType<ScrollViewer>().SingleOrDefault();
+                if (window is BatchPlotWindow printing)
+                {
+                    var header = (FrameworkElement)printing.FindName("PrintToolbar");
+                    var grid = (DataGrid)printing.FindName("FramesGrid");
+                    if (grid.ActualHeight <= 30) throw new InvalidOperationException("Print list has no scrolling viewport");
+                    var position = header.TranslatePoint(new Point(0, 0), content);
+                    if (grid.Items.Count > 0) grid.ScrollIntoView(grid.Items[grid.Items.Count - 1]);
+                    content.UpdateLayout();
+                    if ((header.TranslatePoint(new Point(0, 0), content) - position).Length > 0.1)
+                        throw new InvalidOperationException("Print toolbar moved with the sheet list");
+                    continue;
+                }
                 if (window is StampTransferWindow)
                 {
                     var table = ((DockPanel)window.Content).Children.OfType<DataGrid>().Single();

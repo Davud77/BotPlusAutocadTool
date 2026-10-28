@@ -34,6 +34,8 @@
                             <TextBox x:Name="OutputFolderBox" Text="{Binding PlotOutputDirectory, UpdateSourceTrigger=PropertyChanged}"/>
                         </DockPanel>
                         <CheckBox Content="Печатать в фоне" IsChecked="{Binding PlotInBackground}"/>
+                        <CheckBox Content="Сохранять существующие PDF, добавляя индекс к новому файлу" IsChecked="{Binding KeepExistingPdfFiles}"/>
+                        <TextBlock Text="Если имя занято: файл_2.pdf, файл_3.pdf и далее. При снятой галочке PDF с тем же именем заменяется." Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,6"/>
                         <CheckBox Content="Открыть папку после печати" IsChecked="{Binding OpenFolderAfterPlot}"/>
                         <CheckBox Content="Открыть файл после печати" IsChecked="{Binding OpenFileAfterPlot}"/>
                         <TextBlock Text="При печати по листам открывается первый PDF, чтобы не запускать множество окон." Foreground="{DynamicResource TextSecondary}"/>

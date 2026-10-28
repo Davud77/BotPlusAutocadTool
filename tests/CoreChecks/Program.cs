@@ -9,6 +9,19 @@ Directory.CreateDirectory(results);
 int checks = 0;
 void Assert(bool value, string message) { if (!value) throw new Exception(message); checks++; }
 
+var grid = new[] { ("A", 0.0, 100.0), ("B", 100.0, 101.0), ("C", 0.5, 0.0), ("D", 100.5, 0.5) };
+foreach (var scale in new[] { 1, 100 })
+{
+    var scaled = grid.Select(p => (p.Item1, X: p.Item2 * scale, Y: p.Item3 * scale)).Reverse().ToArray();
+    foreach (var pair in new[] { (PlotSearchOrder.TopToBottom, "ABCD"), (PlotSearchOrder.BottomToTop, "CDAB"),
+        (PlotSearchOrder.LeftToRight, "ACBD"), (PlotSearchOrder.RightToLeft, "BDAC") })
+        Assert(string.Concat(PlotFrameOrdering.Sort(scaled, p => p.X, p => p.Y, pair.Item1, 2 * scale)
+            .Select(p => p.Item1)) == pair.Item2, "Frame direction or scale tolerance failed: " + pair);
+}
+Assert(PlotFrameOrdering.Sort(Array.Empty<int>(), i => i, i => i, PlotSearchOrder.TopToBottom, 10).Count == 0, "Empty frame ordering failed");
+var chain = new[] { 100, 94, 88 };
+Assert(PlotFrameOrdering.Sort(chain, i => -i, i => i, PlotSearchOrder.TopToBottom, 10).SequenceEqual(new[] { 100, 94, 88 }), "Row tolerance chained across distinct rows");
+
 var settingsFile = Path.Combine(results, "settings.json");
 string binder = Path.Combine(results, "Папка PDF", "Чертёж_Binder.pdf");
 Assert(PdfOutputPaths.OpenTargets(binder, false, false, false, null).Length == 0, "Disabled post-print actions still opened output");
@@ -18,6 +31,8 @@ Assert(PdfOutputPaths.OpenTargets(binder, false, true, true, null).Length == 2, 
 Assert(PdfOutputPaths.OpenTargets(results, true, true, false, "07").Single() == results, "Sheet folder action failed");
 Assert(PdfOutputPaths.OpenTargets(results, true, false, true, "07/А").Single() == Path.Combine(results, "001_Лист_07_А.pdf"), "First generated sheet path/sanitization failed");
 Assert(PdfOutputPaths.SheetFileName(1, null) == "002_Лист_2.pdf", "Missing sheet number fallback changed");
+Assert(PdfOutputPaths.OpenTargets(results, true, false, true, "07", Path.Combine(results, "001_Лист_07_3.pdf")).Single()
+    .EndsWith("001_Лист_07_3.pdf"), "Post-print action opened an old sheet instead of the indexed output");
 AtomicFile.WriteAllText(settingsFile, "original");
 AtomicFile.WriteAllText(settingsFile, "replacement");
 Assert(File.ReadAllText(settingsFile) == "replacement", "Atomic replacement failed");

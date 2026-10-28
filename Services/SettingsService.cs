@@ -95,6 +95,7 @@ namespace BotPlusAutocadTool.Services
         public bool PlotInBackground { get; set; } = true;
         public bool OpenFolderAfterPlot { get; set; }
         public bool OpenFileAfterPlot { get; set; }
+        public bool KeepExistingPdfFiles { get; set; }
         public string PlotOutputDirectory { get; set; } = "";
 
         internal void Normalize()

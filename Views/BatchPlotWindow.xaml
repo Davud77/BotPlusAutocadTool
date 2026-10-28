@@ -6,6 +6,27 @@
             </ResourceDictionary.MergedDictionaries>
             <BooleanToVisibilityConverter x:Key="BoolToVis"/>
             <vm:InverseBoolConverter x:Key="InverseBool"/>
+            <ui:PlotToolbarHeightConverter x:Key="ToolbarHeight"/>
+            <Style x:Key="SearchOrderButton" TargetType="RadioButton">
+                <Setter Property="Padding" Value="10,6"/>
+                <Setter Property="Margin" Value="0,0,6,6"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="RadioButton">
+                            <Border x:Name="Frame" Background="{DynamicResource ControlBackground}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Frame" Property="Background" Value="{DynamicResource HoverBackground}"/></Trigger>
+                                <Trigger Property="IsChecked" Value="True"><Setter TargetName="Frame" Property="Background" Value="{DynamicResource SelectionBackground}"/><Setter TargetName="Frame" Property="BorderBrush" Value="{DynamicResource AccentColor}"/></Trigger>
+                                <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Frame" Property="BorderBrush" Value="{DynamicResource AccentColor}"/></Trigger>
+                                <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.5"/></Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
             <Style x:Key="ExcelFillThumb" TargetType="Thumb">
                 <Setter Property="Width" Value="10"/>
                 <Setter Property="Height" Value="10"/>
@@ -28,7 +49,7 @@
             </Style>
         </ResourceDictionary>
     </Window.Resources>
-    <DockPanel LastChildFill="True" Background="{DynamicResource WindowBackground}">
+    <DockPanel x:Name="PrintDock" LastChildFill="True" Background="{DynamicResource WindowBackground}">
         <Border DockPanel.Dock="Bottom" Margin="16,8,16,16" Padding="8" Background="{DynamicResource ControlBackground}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1">
             <WrapPanel HorizontalAlignment="Right">
                 <Button Content="Обновить" Command="{Binding RefreshCommand}" Margin="4"/>
@@ -39,15 +60,27 @@
                 <Button Content="PDF по листам" Command="{Binding PlotBySheetsCommand}" Margin="4"/>
             </WrapPanel>
         </Border>
-        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0" CanContentScroll="False" Name="DialogViewport">
-            <Grid Margin="16">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-                <Border Grid.Row="1" Background="{DynamicResource ControlBackground}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="3" Padding="10" Margin="0,0,0,10">
+        <ScrollViewer x:Name="PrintToolbar" DockPanel.Dock="Top" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MaxHeight="{Binding ActualHeight, ElementName=PrintDock, Converter={StaticResource ToolbarHeight}}">
+            <StackPanel Margin="16,16,16,0">
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="100"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Масштаб" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <ComboBox Grid.Column="1" SelectedIndex="{Binding PlotScaleIndex}" Margin="0,0,16,0">
+                        <ComboBoxItem Content="1:1"/>
+                        <ComboBoxItem Content="1:100"/>
+                    </ComboBox>
+                    <TextBlock Grid.Column="2" Text="Папка PDF" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <DockPanel Grid.Column="3">
+                        <Button DockPanel.Dock="Right" Content="…" Command="{Binding BrowseOutputCommand}" MinWidth="32" Width="32" Padding="4" Margin="6,0,0,0" ToolTip="Выбрать папку PDF"/>
+                        <TextBox Text="{Binding OutputDirectory, UpdateSourceTrigger=PropertyChanged}" ToolTip="Пусто — сохранить рядом с DWG"/>
+                    </DockPanel>
+                </Grid>
+                <Border Background="{DynamicResource ControlBackground}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="3" Padding="10" Margin="0,0,0,10">
                     <Grid>
                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><TextBlock Text="{Binding StatusMessage}" FontWeight="Bold" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap"/>
                         <WrapPanel VerticalAlignment="Center" Grid.Row="1" Margin="0,8,0,0">
@@ -60,10 +93,19 @@
                                 <TextBlock Text="Обработка..." FontStyle="Italic" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimary}"/>
                             </StackPanel>
                         </WrapPanel>
+                        <WrapPanel Grid.Row="2" Margin="0,4,0,0" IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}">
+                            <TextBlock Text="Порядок поиска:" VerticalAlignment="Center" Margin="0,0,10,6"/>
+                            <RadioButton Content="↓ Сверху вниз" GroupName="SearchOrder" Style="{StaticResource SearchOrderButton}" IsChecked="{Binding IsTopToBottom, Mode=TwoWay}" ToolTip="По строкам сверху вниз; внутри строки — слева направо."/>
+                            <RadioButton Content="↑ Снизу вверх" GroupName="SearchOrder" Style="{StaticResource SearchOrderButton}" IsChecked="{Binding IsBottomToTop, Mode=TwoWay}" ToolTip="По строкам снизу вверх; внутри строки — слева направо."/>
+                            <RadioButton Content="→ Слева направо" GroupName="SearchOrder" Style="{StaticResource SearchOrderButton}" IsChecked="{Binding IsLeftToRight, Mode=TwoWay}" ToolTip="По столбцам слева направо; внутри столбца — сверху вниз."/>
+                            <RadioButton Content="← Справа налево" GroupName="SearchOrder" Style="{StaticResource SearchOrderButton}" IsChecked="{Binding IsRightToLeft, Mode=TwoWay}" ToolTip="По столбцам справа налево; внутри столбца — сверху вниз."/>
+                        </WrapPanel>
                     </Grid>
                 </Border>
-                <Border Grid.Row="2" Background="{DynamicResource ControlBackground}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="3">
-                    <DataGrid ItemsSource="{Binding Items}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" SelectionMode="Extended" IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}" AlternatingRowBackground="{DynamicResource WindowBackground}" GridLinesVisibility="Horizontal" HeadersVisibility="Column" MinRowHeight="34" RowHeight="{x:Static sys:Double.NaN}" FontSize="12">
+            </StackPanel>
+        </ScrollViewer>
+                <Border x:Name="PlotItemsViewport" Margin="16,0,16,0" Background="{DynamicResource ControlBackground}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="3">
+                    <DataGrid x:Name="FramesGrid" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Auto" ItemsSource="{Binding Items}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" SelectionMode="Extended" IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}" AlternatingRowBackground="{DynamicResource WindowBackground}" GridLinesVisibility="Horizontal" HeadersVisibility="Column" MinRowHeight="34" RowHeight="{x:Static sys:Double.NaN}" FontSize="12">
                         <DataGrid.ColumnHeaderStyle>
                             <Style TargetType="DataGridColumnHeader">
                                 <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>
@@ -218,25 +260,5 @@
                         </DataGrid.Columns>
                     </DataGrid>
                 </Border>
-                <Grid Grid.Row="0" Margin="0,0,0,10">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="100"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Text="Масштаб" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                    <ComboBox Grid.Column="1" SelectedIndex="{Binding PlotScaleIndex}" Margin="0,0,16,0">
-                        <ComboBoxItem Content="1:1"/>
-                        <ComboBoxItem Content="1:100"/>
-                    </ComboBox>
-                    <TextBlock Grid.Column="2" Text="Папка PDF" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                    <DockPanel Grid.Column="3">
-                        <Button DockPanel.Dock="Right" Content="…" Command="{Binding BrowseOutputCommand}" MinWidth="32" Width="32" Padding="4" Margin="6,0,0,0" ToolTip="Выбрать папку PDF"/>
-                        <TextBox Text="{Binding OutputDirectory, UpdateSourceTrigger=PropertyChanged}" ToolTip="Пусто — сохранить рядом с DWG"/>
-                    </DockPanel>
-                </Grid>
-            </Grid>
-        </ScrollViewer>
     </DockPanel>
 </Window>

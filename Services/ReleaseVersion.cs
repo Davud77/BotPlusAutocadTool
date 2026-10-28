@@ -10,6 +10,11 @@ namespace BotPlusAutocadTool.Services
         public Version Version { get; }
         public string Tag { get; }
         public Uri Url { get; }
+        public Uri InstallerUrl { get; private set; }
+        public string InstallerName { get; private set; }
+        public long InstallerSize { get; private set; }
+        public string InstallerSha256 { get; private set; }
+        public Uri ChecksumsUrl { get; private set; }
         private ReleaseVersion(Version version, string tag, Uri url) { Version = version; Tag = tag; Url = url; }
 
         public static ReleaseVersion FindUpdate(string json, Version installed, bool includePrerelease = false)
@@ -28,6 +33,26 @@ namespace BotPlusAutocadTool.Services
                     url.Scheme != "https" || url.Host != "github.com" ||
                     !url.AbsolutePath.StartsWith("/Davud77/BotPlusAutocadTool/releases/", StringComparison.Ordinal)) continue;
                 best = new ReleaseVersion(normalized, tag, url);
+                string installer = "BotPlusAutocadTool-" + number + "-Setup.exe";
+                string checksums = "SHA256SUMS-" + number + ".txt";
+                foreach (var asset in release["assets"] as JArray ?? new JArray())
+                {
+                    string name = asset.Value<string>("name");
+                    if (name != installer && name != checksums) continue;
+                    var expected = new Uri("https://github.com/Davud77/BotPlusAutocadTool/releases/download/" +
+                        Uri.EscapeDataString(tag) + "/" + Uri.EscapeDataString(name));
+                    if (!Uri.TryCreate(asset.Value<string>("browser_download_url"), UriKind.Absolute, out var download) || download != expected) continue;
+                    if (name == checksums) best.ChecksumsUrl = download;
+                    else
+                    {
+                        best.InstallerUrl = download;
+                        best.InstallerName = name;
+                        best.InstallerSize = asset.Value<long?>("size") ?? 0;
+                        string digest = asset.Value<string>("digest");
+                        if (digest?.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase) == true)
+                            best.InstallerSha256 = digest.Substring(7);
+                    }
+                }
             }
             return best;
         }

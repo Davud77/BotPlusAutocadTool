@@ -71,6 +71,24 @@ namespace BotPlusAutocadTool.ViewModels
 
         public List<string> AllFormatNames { get; private set; }
 
+        public bool IsTopToBottom { get => _service.SearchOrder == PlotSearchOrder.TopToBottom; set { if (value) SetSearchOrder(PlotSearchOrder.TopToBottom); } }
+        public bool IsBottomToTop { get => _service.SearchOrder == PlotSearchOrder.BottomToTop; set { if (value) SetSearchOrder(PlotSearchOrder.BottomToTop); } }
+        public bool IsLeftToRight { get => _service.SearchOrder == PlotSearchOrder.LeftToRight; set { if (value) SetSearchOrder(PlotSearchOrder.LeftToRight); } }
+        public bool IsRightToLeft { get => _service.SearchOrder == PlotSearchOrder.RightToLeft; set { if (value) SetSearchOrder(PlotSearchOrder.RightToLeft); } }
+
+        private void SetSearchOrder(PlotSearchOrder order)
+        {
+            if (_service.SearchOrder == order || IsBusy) return;
+            _service.SearchOrder = order;
+            UserPreferences.Write("BatchPlotOrder", new Newtonsoft.Json.Linq.JObject { ["Direction"] = order.ToString() });
+            // Reuse the items to keep edited titles, numbers and checkboxes.
+            Items = new ObservableCollection<BatchPlotItem>(_service.SortFrames(Items));
+            OnPropertyChanged(nameof(IsTopToBottom));
+            OnPropertyChanged(nameof(IsBottomToTop));
+            OnPropertyChanged(nameof(IsLeftToRight));
+            OnPropertyChanged(nameof(IsRightToLeft));
+        }
+
         public string StatusMessage
         {
             get => _statusMessage;
@@ -181,6 +199,8 @@ namespace BotPlusAutocadTool.ViewModels
         {
             _drawingInteraction = drawingInteraction ?? (operation => operation());
             _service = new BatchPlotService();
+            if (Enum.TryParse(UserPreferences.Read("BatchPlotOrder").Value<string>("Direction"), out PlotSearchOrder order)
+                && Enum.IsDefined(typeof(PlotSearchOrder), order)) _service.SearchOrder = order;
             var filter = UserPreferences.Read("BatchPlotFilter");
             _service.BlockName = filter.Value<string>("Block") ?? BatchPlotService.DefaultBlockName;
             _service.LayerName = filter.Value<string>("Layer") ?? BatchPlotService.DefaultLayerName;
@@ -538,7 +558,7 @@ namespace BotPlusAutocadTool.ViewModels
 
                 // 3) Запускаем -PUBLISH
                 bool ok = DsdPublishService.Publish(dsdPath, pdfPath, outputPath, selected, separateSheets, PlotInBackground,
-                    SettingsService.Settings.OpenFolderAfterPlot, SettingsService.Settings.OpenFileAfterPlot);
+                    SettingsService.Settings.OpenFolderAfterPlot, SettingsService.Settings.OpenFileAfterPlot, SettingsService.Settings.KeepExistingPdfFiles);
 
                 if (!ok)
                 {

@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 using System;
-using System.Diagnostics;
 using System.Net.Http;
 using System.Reflection;
 using System.Threading;
@@ -91,9 +90,7 @@ namespace BotPlusAutocadTool.Services
                     if (!manual && SettingsService.Settings.LastNotifiedUpdateTag == update.Tag) return;
                     SettingsService.Settings.LastNotifiedUpdateTag = update.Tag;
                     SettingsService.Save();
-                    if (MessageBox.Show($"Доступна новая версия {update.Tag}. Открыть страницу загрузки?\n\nПеред запуском установщика закройте AutoCAD.",
-                        "Обновление BotPlusAutocadTool", MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
-                        Process.Start(new ProcessStartInfo(update.Url.AbsoluteUri) { UseShellExecute = true });
+                    AcadApp.ShowModalWindow(new Views.UpdateDownloadWindow(update));
                 }
                 else if (manual) MessageBox.Show("Более новой опубликованной версии не найдено.", "BotPlusAutocadTool", MessageBoxButton.OK, MessageBoxImage.Information);
             }

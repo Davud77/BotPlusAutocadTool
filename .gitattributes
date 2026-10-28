@@ -9,3 +9,6 @@
 *.yml text eol=lf
 *.png binary
 *.dwg binary
+*.dwt binary
+*.pc3 binary
+*.pmp binary

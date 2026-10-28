@@ -57,6 +57,7 @@ namespace BotPlusAutocadTool.Services
         public string BlockName { get; set; } = DefaultBlockName;
         public string LayerName { get; set; } = DefaultLayerName;
         public int PlotScale { get; set; } = SettingsService.Settings.PlotScale;
+        public PlotSearchOrder SearchOrder { get; set; } = PlotSearchOrder.TopToBottom;
 
         #endregion
 
@@ -79,6 +80,7 @@ namespace BotPlusAutocadTool.Services
             new PaperFormatDefinition("A2", 594, 420),
             new PaperFormatDefinition("A3", 420, 297),
             new PaperFormatDefinition("A4", 297, 210),
+            new PaperFormatDefinition("A5", 210, 148),
 
             // Кратные A0
             new PaperFormatDefinition("A0x2", 1682, 1189),
@@ -121,20 +123,20 @@ namespace BotPlusAutocadTool.Services
         {
             var list = new List<string>();
 
-            // Стандартные форматы (A0-A4) в двух ориентациях
-            var standardFormats = new[] { "A0", "A1", "A2", "A3", "A4" };
+            // Основные форматы и дополнительный A5 в двух ориентациях
+            var standardFormats = new[] { "A0", "A1", "A2", "A3", "A4", "A5" };
             foreach (var fmt in standardFormats)
             {
                 list.Add(fmt);        // Альбомная
                 list.Add($"{fmt} v"); // Книжная
             }
 
-            // Кратные форматы (без " v", т.к. всегда альбомные)
+            // Кратные форматы в двух ориентациях
             var multipleFormats = _definedFormats
                 .Where(f => f.Name.Contains("x"))
                 .Select(f => f.Name)
                 .OrderBy(n => n);
-            list.AddRange(multipleFormats);
+            foreach (var format in multipleFormats) { list.Add(format); list.Add(format + " v"); }
 
             // Нестандартный
             list.Add("Нестандартный");
@@ -263,9 +265,12 @@ namespace BotPlusAutocadTool.Services
                 }
             }
 
-            // НОВОЕ: сортировка по расположению — сверху вниз, слева направо
-            return SortLeftRightTopBottom(items, RowToleranceMm);
+            return SortFrames(items);
         }
+
+        public List<BatchPlotItem> SortFrames(IEnumerable<BatchPlotItem> items) =>
+            PlotFrameOrdering.Sort(items, i => i.Extents.MinPoint.X, i => i.Extents.MinPoint.Y,
+                SearchOrder, RowToleranceMm * PlotScale);
 
         /// <summary>
         /// Обновление атрибутов блоков в чертеже
@@ -365,18 +370,12 @@ namespace BotPlusAutocadTool.Services
                 {
                     matchedDefinition = fmt;
 
-                    if (fmt.Name.Contains("x"))
-                        return fmt.Name;
-
                     bool isPortrait = blockHeight > blockWidth;
                     return isPortrait ? $"{fmt.Name} v" : fmt.Name;
                 }
                 else if (matchesRotated)
                 {
                     matchedDefinition = fmt;
-
-                    if (fmt.Name.Contains("x"))
-                        return fmt.Name;
 
                     return $"{fmt.Name} v";
                 }
@@ -463,53 +462,6 @@ namespace BotPlusAutocadTool.Services
 
         #endregion
 
-        #region Сортировка по расположению
 
-        /// <summary>
-        /// Сортировка форматок "сверху вниз, слева направо".
-        /// Опорная точка — левый нижний угол рамки (Extents.MinPoint).
-        /// </summary>
-        private static List<BatchPlotItem> SortLeftRightTopBottom(
-            List<BatchPlotItem> items,
-            double rowTolerance)
-        {
-            if (items == null || items.Count <= 1)
-                return items ?? new List<BatchPlotItem>();
-
-            // Грубая сортировка: сверху вниз (Y desc), слева направо (X asc)
-            var sorted = items
-                .OrderByDescending(i => i.Extents.MinPoint.Y)
-                .ThenBy(i => i.Extents.MinPoint.X)
-                .ToList();
-
-            var rows = new List<List<BatchPlotItem>>();
-
-            foreach (var it in sorted)
-            {
-                double y = it.Extents.MinPoint.Y;
-
-                if (rows.Count == 0)
-                {
-                    rows.Add(new List<BatchPlotItem> { it });
-                    continue;
-                }
-
-                double baseY = rows[^1][0].Extents.MinPoint.Y;
-
-                // если по Y в пределах допуска — та же строка, иначе новая строка
-                if (Math.Abs(y - baseY) <= rowTolerance)
-                    rows[^1].Add(it);
-                else
-                    rows.Add(new List<BatchPlotItem> { it });
-            }
-
-            // Внутри строки — слева направо
-            foreach (var row in rows)
-                row.Sort((a, b) => a.Extents.MinPoint.X.CompareTo(b.Extents.MinPoint.X));
-
-            return rows.SelectMany(r => r).ToList();
-        }
-
-        #endregion
     }
 }

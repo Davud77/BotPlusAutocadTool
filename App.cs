@@ -19,6 +19,7 @@ namespace BotPlusAutocadTool
         internal static void ShowClassicUi() => _instance?._classic.Show();
         private DateTime _nextUiCheckUtc;
         private bool _initialized;
+        private bool _plotterInstalled;
 
         public void Initialize()
         {
@@ -52,6 +53,15 @@ namespace BotPlusAutocadTool
             var now = DateTime.UtcNow;
             if (now < _nextUiCheckUtc) return;
             _nextUiCheckUtc = now.AddSeconds(1);
+            if (!_plotterInstalled && !DsdPublishService.IsBusy)
+            {
+                try
+                {
+                    PdfPlotterService.EnsureInstalled();
+                    _plotterInstalled = true;
+                }
+                catch (System.Exception ex) { PluginLog.Error("Install PDF plotter", ex); }
+            }
             try
             {
                 _ribbon.EnsureCreated();

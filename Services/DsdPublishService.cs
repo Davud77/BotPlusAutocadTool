@@ -15,11 +15,11 @@ namespace BotPlusAutocadTool.Services
         public static bool IsBusy => _job != null;
 
         public static bool Publish(string dsdPath, string pdfPath, string outputPath,
-            IReadOnlyList<BatchPlotItem> items, bool separateSheets, bool background, bool openFolder = false, bool openFile = false)
+            IReadOnlyList<BatchPlotItem> items, bool separateSheets, bool background, bool openFolder = false, bool openFile = false, bool keepExisting = false)
         {
             var doc = AcadApp.DocumentManager.MdiActiveDocument;
             if (doc == null || IsBusy || !File.Exists(dsdPath)) return false;
-            var job = new PublishJob(doc, pdfPath, outputPath, items, separateSheets, background, openFolder, openFile);
+            var job = new PublishJob(doc, dsdPath, pdfPath, outputPath, items, separateSheets, background, openFolder, openFile, keepExisting);
             _job = job;
             try
             {
@@ -40,27 +40,40 @@ namespace BotPlusAutocadTool.Services
             private readonly string _pdfPath, _outputPath;
             private readonly IReadOnlyList<BatchPlotItem> _items;
             private readonly bool _separateSheets;
+            private readonly bool _keepExisting;
             private readonly bool _openFolder, _openFile;
             private readonly object _oldFileDia, _oldBackgroundPlot;
             private readonly int _ownedBackgroundPlot;
+            private readonly string[] _sourcePages;
             private readonly DateTime _created = DateTime.UtcNow;
             private readonly PublishFileReadiness _pdfReadiness = new();
             private DateTime _finishedAt, _nextPollUtc;
             private bool _started, _finished, _failed, _disposed;
 
-            public PublishJob(Document doc, string pdfPath, string outputPath,
-                IReadOnlyList<BatchPlotItem> items, bool separateSheets, bool background, bool openFolder, bool openFile)
+            public PublishJob(Document doc, string dsdPath, string pdfPath, string outputPath,
+                IReadOnlyList<BatchPlotItem> items, bool separateSheets, bool background, bool openFolder, bool openFile, bool keepExisting)
             {
                 _doc = doc; _pdfPath = pdfPath; _outputPath = outputPath;
+                using (var data = new DsdData())
+                {
+                    data.ReadDsd(dsdPath);
+                    using var entries = data.GetDsdEntryCollection();
+                    _sourcePages = data.SheetType == SheetType.OriginalDevice ? entries.Cast<DsdEntry>()
+                        .Select(entry => Path.Combine(data.ProjectPath, entry.Title + ".pdf")).ToArray() : new[] { pdfPath };
+                }
                 // The user can change the print list while background publishing runs.
                 _items = items.Select(item => new BatchPlotItem
                 {
                     Name = item.Name,
                     SheetNumber = item.SheetNumber,
                     Format = item.Format,
-                    FormatDefinition = item.FormatDefinition
+                    FormatDefinition = item.FormatDefinition,
+                    PlotWidthMm = item.PlotWidthMm,
+                    PlotHeightMm = item.PlotHeightMm,
+                    PlotScale = item.PlotScale
                 }).ToArray();
                 _separateSheets = separateSheets;
+                _keepExisting = keepExisting;
                 _openFolder = openFolder; _openFile = openFile;
                 _ownedBackgroundPlot = background ? 3 : 0;
                 _oldFileDia = AcadApp.GetSystemVariable("FILEDIA");
@@ -150,15 +163,18 @@ namespace BotPlusAutocadTool.Services
                 try
                 {
                     if (_failed) { _doc.Editor.WriteMessage("\n[BotPlus] Публикация отменена или завершилась с ошибкой.\n"); return; }
-                    if (!File.Exists(_pdfPath)) throw new IOException("Публикация завершилась без ожидаемого PDF.");
                     if (!ready) throw new IOException("PDF ещё записывается или недоступен для обработки. Временный файл сохранён: " + _pdfPath);
+                    if (_sourcePages.Length != 1 || !string.Equals(_sourcePages[0], _pdfPath, StringComparison.OrdinalIgnoreCase))
+                        PdfPostProcessingService.CombinePages(_sourcePages, _pdfPath);
+                    if (!File.Exists(_pdfPath)) throw new IOException("Публикация завершилась без ожидаемого PDF.");
                     using (var stream = File.Open(_pdfPath, FileMode.Open, FileAccess.Read, FileShare.None)) { }
                     if (!PdfPostProcessingService.ProcessPdf(_pdfPath, _items, _doc.Editor))
                         throw new IOException("Не удалось обработать PDF. Исходный PDF сохранён: " + _pdfPath);
-                    PdfPostProcessingService.DeliverPdf(_pdfPath, _outputPath, _items, _separateSheets);
-                    _doc.Editor.WriteMessage($"\n[BotPlus] PDF готов: {_outputPath}\n");
-                    PublishedOutputService.Open(_outputPath, _separateSheets, _openFolder, _openFile, _items.FirstOrDefault()?.SheetNumber,
-                        message => _doc.Editor.WriteMessage("\n[BotPlus] " + message + "\n"));
+                    var files = PdfPostProcessingService.DeliverPdf(_pdfPath, _outputPath, _items, _separateSheets, _keepExisting);
+                    string result = _separateSheets ? _outputPath : files[0];
+                    _doc.Editor.WriteMessage($"\n[BotPlus] PDF готов: {result}\n");
+                    PublishedOutputService.Open(result, _separateSheets, _openFolder, _openFile, _items.FirstOrDefault()?.SheetNumber,
+                        message => _doc.Editor.WriteMessage("\n[BotPlus] " + message + "\n"), files.FirstOrDefault());
                 }
                 catch (System.Exception ex)
                 {
@@ -172,8 +188,17 @@ namespace BotPlusAutocadTool.Services
             {
                 try
                 {
-                    using var stream = File.Open(_pdfPath, FileMode.Open, FileAccess.Read, FileShare.None);
-                    return _pdfReadiness.Observe(now, stream.Length, File.GetLastWriteTimeUtc(_pdfPath), true);
+                    long length = 0;
+                    DateTime lastWrite = DateTime.MinValue;
+                    foreach (var path in _sourcePages)
+                    {
+                        using var stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.None);
+                        if (stream.Length == 0) { _pdfReadiness.Reset(); return false; }
+                        length += stream.Length;
+                        var stamp = File.GetLastWriteTimeUtc(path);
+                        if (stamp > lastWrite) lastWrite = stamp;
+                    }
+                    return _pdfReadiness.Observe(now, length, lastWrite, _sourcePages.Length > 0);
                 }
                 catch (IOException) { _pdfReadiness.Reset(); return false; }
             }

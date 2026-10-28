@@ -6,7 +6,7 @@
 #endif
 #define ProjectDir ".."
 #ifndef AppVersion
-  #define AppVersion "1.3.3"
+  #define AppVersion "1.4"
 #endif
 
 [Setup]
@@ -38,7 +38,7 @@ WizardStyle=modern
 CloseApplications=no
 RestartApplications=no
 SetupLogging=yes
-VersionInfoVersion={#AppVersion}.0
+VersionInfoVersion={#AppVersion}.0.0
 
 [Languages]
 Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
@@ -56,10 +56,12 @@ Source: "{#ProjectDir}\README.md"; DestDir: "{app}\Documentation"; Flags: ignore
 Source: "{#ProjectDir}\LICENSE"; DestDir: "{app}\Documentation"; Flags: ignoreversion
 Source: "{#ProjectDir}\THIRD-PARTY-NOTICES.md"; DestDir: "{app}\Documentation"; Flags: ignoreversion
 Source: "{#ProjectDir}\docs\VALIDATION.md"; DestDir: "{app}\Documentation\docs"; Flags: ignoreversion
+Source: "{#ProjectDir}\docs\PRINTING-FORMATS.md"; DestDir: "{app}\Documentation\docs"; Flags: ignoreversion
 Source: "{#ProjectDir}\docs\ARCHITECTURE.md"; DestDir: "{app}\Documentation\docs"; Flags: ignoreversion
 Source: "{#ProjectDir}\docs\REFACTORING-1.3.0.md"; DestDir: "{app}\Documentation\docs"; Flags: ignoreversion
 Source: "{#ProjectDir}\docs\USAGE-1.3.0.md"; DestDir: "{app}\Documentation\docs"; Flags: ignoreversion
 Source: "{#ProjectDir}\docs\USAGE-1.3.3.md"; DestDir: "{app}\Documentation\docs"; Flags: ignoreversion
+Source: "{#ProjectDir}\docs\USAGE-1.4.md"; DestDir: "{app}\Documentation\docs"; Flags: ignoreversion
 Source: "{#ProjectDir}\docs\UPDATE-VALIDATION.md"; DestDir: "{app}\Documentation\docs"; Flags: ignoreversion
 Source: "{#ProjectDir}\docs\MERGE-NOTES.md"; DestDir: "{app}\Documentation\docs"; Flags: ignoreversion
 Source: "{#ProjectDir}\scripts\Get-LoadDiagnostics.ps1"; DestDir: "{app}\Documentation"; Flags: ignoreversion
@@ -142,4 +144,42 @@ begin
   Result := not AutoCADIsRunning();
   if not Result then
     MsgBox('Закройте AutoCAD и Core Console перед удалением. / Close AutoCAD and Core Console before uninstalling.', mbError, MB_OK);
+end;
+
+procedure InstallPdfPlotter(Year, ReleaseKey, BinaryFolder: String);
+var Root, Plotters, Source: String; Language: TFindRec;
+begin
+  Root := ExpandConstant('{userappdata}\Autodesk\AutoCAD ') + Year + '\' + ReleaseKey;
+  Source := ExpandConstant('{app}\Contents\Windows\') + BinaryFolder + '\Assets\Plotters\';
+  if FindFirst(Root + '\*', Language) then
+  try
+    repeat
+      if ((Language.Attributes and FILE_ATTRIBUTE_DIRECTORY) <> 0) and
+         (Language.Name <> '.') and (Language.Name <> '..') then
+      begin
+        Plotters := Root + '\' + Language.Name + '\Plotters';
+        if DirExists(Plotters) then
+        begin
+          ForceDirectories(Plotters + '\PMP Files');
+          if CopyFile(Source + 'BotPlus PDF.pc3', Plotters + '\BotPlus PDF.pc3', False) and
+             CopyFile(Source + 'PMP Files\BotPlus PDF.pmp', Plotters + '\PMP Files\BotPlus PDF.pmp', False) then
+            Log('BotPlus PDF installed: ' + Plotters)
+          else
+            Log('BotPlus PDF will be installed by the plugin for the active profile: ' + Plotters);
+        end;
+      end;
+    until not FindNext(Language);
+  finally
+    FindClose(Language);
+  end;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssPostInstall then
+  begin
+    InstallPdfPlotter('2025', 'R25.0', '2025-2026');
+    InstallPdfPlotter('2026', 'R25.1', '2025-2026');
+    InstallPdfPlotter('2027', 'R26.0', '2027');
+  end;
 end;

@@ -44,6 +44,8 @@ namespace BotPlusAutocadTool.Models
         /// </summary>
         public PaperFormatDefinition FormatDefinition { get; set; }
         public int PlotScale { get; set; } = 1;
+        public double PlotWidthMm { get; set; }
+        public double PlotHeightMm { get; set; }
 
         #endregion
 

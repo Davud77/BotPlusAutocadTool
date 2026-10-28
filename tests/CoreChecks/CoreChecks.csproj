@@ -11,6 +11,7 @@
     <Compile Include="..\..\Services\FileEditSession.cs" Link="FileEditSession.cs" />
     <Compile Include="..\..\Services\PublishFileReadiness.cs" Link="PublishFileReadiness.cs" />
     <Compile Include="..\..\Services\PdfOutputPaths.cs" Link="PdfOutputPaths.cs" />
+    <Compile Include="..\..\Services\PlotFrameOrdering.cs" Link="PlotFrameOrdering.cs" />
     <Compile Include="..\..\Services\MTextFormatting.cs" Link="MTextFormatting.cs" />
     <Compile Include="..\..\Models\StripTextOptions.cs" Link="StripTextOptions.cs" />
     <Compile Include="..\..\Models\AutoNumSettings.cs" Link="AutoNumSettings.cs" />

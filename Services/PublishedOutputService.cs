@@ -6,9 +6,9 @@ namespace BotPlusAutocadTool.Services
 {
     internal static class PublishedOutputService
     {
-        internal static void Open(string output, bool separateSheets, bool openFolder, bool openFile, string firstSheetNumber, Action<string> warning)
+        internal static void Open(string output, bool separateSheets, bool openFolder, bool openFile, string firstSheetNumber, Action<string> warning, string firstDeliveredFile = null)
         {
-            foreach (var target in PdfOutputPaths.OpenTargets(output, separateSheets, openFolder, openFile, firstSheetNumber))
+            foreach (var target in PdfOutputPaths.OpenTargets(output, separateSheets, openFolder, openFile, firstSheetNumber, firstDeliveredFile))
             {
                 try { Process.Start(new ProcessStartInfo(target) { UseShellExecute = true })?.Dispose(); }
                 catch (Exception ex)

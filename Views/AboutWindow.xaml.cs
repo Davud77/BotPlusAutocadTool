@@ -17,7 +17,7 @@ namespace BotPlusAutocadTool.Views
             InitializeComponent();
             Title = "BotPlus AT — сервис и справка";
             var version = Assembly.GetExecutingAssembly().GetName().Version;
-            VersionText.Text = $"Версия {version.Major}.{version.Minor}.{version.Build}";
+            VersionText.Text = "Версия " + (version.Build == 0 ? version.ToString(2) : version.ToString(3));
             AutoUpdateCheck.IsChecked = SettingsService.Settings.AutoCheckUpdates;
             PrereleaseUpdateCheck.IsChecked = SettingsService.Settings.IncludePrereleaseUpdates;
             _settingsLoaded = true;

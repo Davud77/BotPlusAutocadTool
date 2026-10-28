@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory=$true)][string]$CompilerPath,
     [string]$BundlePath,
+    [string]$ReleaseDirectory,
     [string]$AutoCAD2027Path = 'C:\Program Files\Autodesk\AutoCAD 2027'
 )
 $ErrorActionPreference = 'Stop'
@@ -24,11 +25,14 @@ foreach ($folder in @('2025-2026','2027')) {
         if (Test-Path -LiteralPath (Join-Path $windows $name)) { throw "Autodesk assembly in bundle: $name" }
     }
     if (!(Test-Path -LiteralPath (Join-Path $windows 'Assets\WM_FORMAT.dwg'))) { throw "Format template missing in bundle: $folder" }
+    foreach ($file in @('BotPlus PDF.pc3','PMP Files\BotPlus PDF.pmp')) {
+        if (!(Test-Path -LiteralPath (Join-Path $windows "Assets\Plotters\$file"))) { throw "PDF plotter missing in bundle: $folder/$file" }
+    }
     if (!(Test-Path -LiteralPath (Join-Path $windows 'Assets\AdditionalFunctions\catalog.json'))) { throw "LISP library missing in bundle: $folder" }
     if (!(Test-Path -LiteralPath (Join-Path $windows 'Assets\AdditionalFunctions\acad_pan\acad_pr\!Подписи.dwg'))) { throw "LISP block dependency missing in bundle: $folder" }
 }
 & (Join-Path $PSScriptRoot 'Collect-Notices.ps1') -BundlePath $BundlePath
-$release = Join-Path $root 'artifacts\release'
+$release = if ($ReleaseDirectory) { [IO.Path]::GetFullPath($ReleaseDirectory) } else { Join-Path $root 'artifacts\release' }
 New-Item -ItemType Directory -Path $release -Force | Out-Null
 & $CompilerPath "/DAppVersion=$version" "/DBundleDir=$BundlePath" "/DReleaseDir=$release" (Join-Path $root 'installer\BotPlusAutocadTool.iss')
 if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed.' }

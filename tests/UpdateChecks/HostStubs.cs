@@ -19,6 +19,8 @@ namespace Autodesk.AutoCAD.ApplicationServices
         public static int SubscriberCount => Idle?.GetInvocationList().Length ?? 0;
         public static readonly Documents DocumentManager = new Documents();
         public static void RaiseIdle() => Idle?.Invoke(null, EventArgs.Empty);
+        public static void ShowModalWindow(BotPlusAutocadTool.Views.UpdateDownloadWindow window) =>
+            System.Windows.MessageBox.Show("Доступна версия " + window.Release.Tag, "Обновление", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
     }
     internal sealed class Documents
     {
@@ -28,6 +30,13 @@ namespace Autodesk.AutoCAD.ApplicationServices
         public Document MdiActiveDocument => ThrowOnRead ? throw new InvalidOperationException("Simulated host failure") : HasActiveDocument ? Active : null;
     }
     internal sealed class Document { public string CommandInProgress { get; set; } = ""; }
+}
+namespace BotPlusAutocadTool.Views
+{
+    internal sealed class UpdateDownloadWindow(BotPlusAutocadTool.Services.ReleaseVersion release)
+    {
+        public BotPlusAutocadTool.Services.ReleaseVersion Release { get; } = release;
+    }
 }
 namespace System.Windows
 {
