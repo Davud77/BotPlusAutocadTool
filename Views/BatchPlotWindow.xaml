@@ -80,6 +80,7 @@
                         <TextBox Text="{Binding OutputDirectory, UpdateSourceTrigger=PropertyChanged}" ToolTip="Пусто — сохранить рядом с DWG"/>
                     </DockPanel>
                 </Grid>
+                <CheckBox Content="Учитывать прозрачность" IsChecked="{Binding PlotTransparency}" Margin="0,0,0,10" ToolTip="Печатать прозрачность объектов и слоёв. Выбор сохраняется для следующих заданий."/>
                 <Border Background="{DynamicResource ControlBackground}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="3" Padding="10" Margin="0,0,0,10">
                     <Grid>
                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><TextBlock Text="{Binding StatusMessage}" FontWeight="Bold" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap"/>

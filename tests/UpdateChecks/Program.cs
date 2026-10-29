@@ -102,6 +102,8 @@ static void TestSettings(string scenario)
     if (scenario == "invalid-values" && (settings.ScaleDenominator != 1 || settings.LengthUnit != 0 || settings.AreaUnit != 0))
         throw new Exception("Invalid persisted settings were not normalized");
     settings.ScaleNumerator = 7;
+    if (settings.PlotTransparency) throw new Exception("Legacy transparency default must be off");
+    settings.PlotTransparency = true;
     if (settings.KeepExistingPdfFiles) throw new Exception("Legacy settings must keep replacement as the default");
     settings.KeepExistingPdfFiles = true;
     if (settings.OpenFolderAfterPlot || settings.OpenFileAfterPlot) throw new Exception("New post-print actions changed legacy defaults");
@@ -110,7 +112,7 @@ static void TestSettings(string scenario)
     if (scenario != "unavailable")
     {
         var restored = JsonConvert.DeserializeObject<PluginSettings>(File.ReadAllText(Path.Combine(root, "settings.json")))!;
-        if (restored.ScaleNumerator != 7 || !restored.OpenFolderAfterPlot || !restored.OpenFileAfterPlot || !restored.KeepExistingPdfFiles) throw new Exception("Settings save failed");
+        if (restored.ScaleNumerator != 7 || !restored.OpenFolderAfterPlot || !restored.OpenFileAfterPlot || !restored.KeepExistingPdfFiles || !restored.PlotTransparency) throw new Exception("Settings save failed");
     }
     Console.WriteLine("PASS: settings " + scenario + ", defaults/save/legacy JSON compatibility.");
 }

@@ -39,13 +39,14 @@ namespace BotPlusAutocadTool.Services
         /// Генерирует PageSetup'ы и DSD файл на основе выбранных элементов.
         /// ВАЖНО: порядок DSD = порядок itemsToPrint (без GroupBy по форматам).
         /// </summary>
-        public static bool Run(Document doc, string dsdPath, List<BatchPlotItem> itemsToPrint, string pdfOutputPath = null)
+        public static bool Run(Document doc, string dsdPath, List<BatchPlotItem> itemsToPrint, string pdfOutputPath = null, bool? plotTransparency = null)
         {
             if (doc == null) return false;
             if (itemsToPrint == null || !itemsToPrint.Any()) return false;
 
             var db = doc.Database;
             var ed = doc.Editor;
+            bool transparency = plotTransparency ?? SettingsService.Settings.PlotTransparency;
 
             var pageSetupCache = new Dictionary<string, string>(StringComparer.Ordinal);
 
@@ -72,11 +73,12 @@ namespace BotPlusAutocadTool.Services
                 return false;
             }
 
-            PdfPlotterService.EnsureInstalled();
+            string plotterPath = PdfPlotterService.EnsureInstalled();
             var mediaOptions = ReadMediaOptions();
             ed.WriteMessage($"\n[BotPlus AT] Подготовка DSD для {printItems.Count} листов...\n");
 
             var entries = new List<DsdSheet>();
+            var diagnostics = new List<object>();
 
             int sheetIndex = 1;
             var usedSheetTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -119,7 +121,7 @@ namespace BotPlusAutocadTool.Services
                             psDict.UpgradeOpen();
                         }
 
-                        ApplyPlotSettingsForItem(ps, item, ed, tr, mediaOptions);
+                        ApplyPlotSettingsForItem(ps, item, ed, tr, mediaOptions, transparency);
                         pageSetupCache[cacheKey] = setupName;
                     }
                     else
@@ -146,6 +148,15 @@ namespace BotPlusAutocadTool.Services
                     }
 
                     entries.Add(new DsdSheet(dwgPathForDsd, modelLayout.LayoutName, setupName, sheetTitle));
+                    var prepared = (PlotSettings)tr.GetObject(psDict.GetAt(setupName), OpenMode.ForRead);
+                    diagnostics.Add(new
+                    {
+                        Sheet = item.SheetNumber, Setup = setupName, Device = prepared.PlotConfigurationName,
+                        Media = prepared.CanonicalMediaName, Paper = new[] { prepared.PlotPaperSize.X, prepared.PlotPaperSize.Y },
+                        Window = new[] { prepared.PlotWindowArea.MinPoint.X, prepared.PlotWindowArea.MinPoint.Y,
+                            prepared.PlotWindowArea.MaxPoint.X, prepared.PlotWindowArea.MaxPoint.Y },
+                        Scale = item.PlotScale, Transparency = prepared.PlotTransparency
+                    });
                     sheetIndex++;
                 }
 
@@ -166,6 +177,15 @@ namespace BotPlusAutocadTool.Services
             try
             {
                 DsdFileWriter.Write(dsdPath, pdfName, entries);
+                using var view = ed.GetCurrentView();
+                Infrastructure.AtomicFile.WriteAllText(dsdPath + ".print.json", Newtonsoft.Json.JsonConvert.SerializeObject(new
+                {
+                    PluginVersion = typeof(BlockExportStage1Service).Assembly.GetName().Version.ToString(),
+                    AutoCAD = Application.GetSystemVariable("ACADVER"), Plotter = plotterPath,
+                    Target = new[] { view.Target.X, view.Target.Y, view.Target.Z },
+                    Direction = new[] { view.ViewDirection.X, view.ViewDirection.Y, view.ViewDirection.Z }, Twist = view.ViewTwist,
+                    Sheets = diagnostics
+                }, Newtonsoft.Json.Formatting.Indented));
                 ed.WriteMessage($"[BotPlus AT] ✓ DSD создан: {dsdPath}\n");
                 ed.WriteMessage($"[BotPlus AT] ✓ PDF будет создан в: {pdfName}\n");
                 ed.WriteMessage($"[BotPlus AT] ✓ Листов: {sheetIndex - 1}, уникальных PageSetup: {pageSetupCache.Count}\n");
@@ -179,7 +199,7 @@ namespace BotPlusAutocadTool.Services
         }
 
         private static void ApplyPlotSettingsForItem(PlotSettings ps, BatchPlotItem item, Editor ed, Transaction tr,
-            List<(string Name, double Width, double Height)> mediaOptions)
+            List<(string Name, double Width, double Height)> mediaOptions, bool plotTransparency)
         {
             PlotSettingsValidator psv = PlotSettingsValidator.Current;
 
@@ -205,6 +225,7 @@ namespace BotPlusAutocadTool.Services
                 psv.SetCanonicalMediaName(ps, media);
                 psv.SetPlotWindowArea(ps, windowDcs);
                 psv.SetPlotType(ps, Autodesk.AutoCAD.DatabaseServices.PlotType.Window);
+                ps.PlotTransparency = plotTransparency;
                 // All supported frames use zero-margin paper, their exact print scale,
                 // and a common lower-left origin. No fitting or centering of long sheets.
                 psv.SetUseStandardScale(ps, false);
@@ -252,9 +273,11 @@ namespace BotPlusAutocadTool.Services
         private static Extents2d BuildWindowDcs(Editor ed, IEnumerable<Point3d> points)
         {
             using var view = ed.GetCurrentView();
-            var worldToDcs = (Matrix3d.PlaneToWorld(view.ViewDirection) *
+            // Autodesk's WCS -> DCS order: rotation * displacement * plane.
+            // Reversing these factors shifts windows when target and twist are nonzero.
+            var worldToDcs = (Matrix3d.Rotation(-view.ViewTwist, view.ViewDirection, view.Target) *
                 Matrix3d.Displacement(view.Target - Point3d.Origin) *
-                Matrix3d.Rotation(-view.ViewTwist, view.ViewDirection, view.Target)).Inverse();
+                Matrix3d.PlaneToWorld(view.ViewDirection)).Inverse();
             var transformed = points.Select(p => p.TransformBy(worldToDcs)).ToArray();
             return new Extents2d(transformed.Min(p => p.X), transformed.Min(p => p.Y),
                 transformed.Max(p => p.X), transformed.Max(p => p.Y));

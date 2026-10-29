@@ -93,6 +93,7 @@ namespace BotPlusAutocadTool.Services
         public double FrameInsertionScale { get; set; } = 1;
         public int PlotScale { get; set; } = 1;
         public bool PlotInBackground { get; set; } = true;
+        public bool PlotTransparency { get; set; }
         public bool OpenFolderAfterPlot { get; set; }
         public bool OpenFileAfterPlot { get; set; }
         public bool KeepExistingPdfFiles { get; set; }

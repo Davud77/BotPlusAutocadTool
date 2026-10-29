@@ -6,7 +6,10 @@
 #endif
 #define ProjectDir ".."
 #ifndef AppVersion
-  #define AppVersion "1.4"
+  #define AppVersion "1.4.1"
+#endif
+#ifndef AppFileVersion
+  #define AppFileVersion "1.4.1.0"
 #endif
 
 [Setup]
@@ -38,7 +41,7 @@ WizardStyle=modern
 CloseApplications=no
 RestartApplications=no
 SetupLogging=yes
-VersionInfoVersion={#AppVersion}.0.0
+VersionInfoVersion={#AppFileVersion}
 
 [Languages]
 Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
@@ -62,6 +65,7 @@ Source: "{#ProjectDir}\docs\REFACTORING-1.3.0.md"; DestDir: "{app}\Documentation
 Source: "{#ProjectDir}\docs\USAGE-1.3.0.md"; DestDir: "{app}\Documentation\docs"; Flags: ignoreversion
 Source: "{#ProjectDir}\docs\USAGE-1.3.3.md"; DestDir: "{app}\Documentation\docs"; Flags: ignoreversion
 Source: "{#ProjectDir}\docs\USAGE-1.4.md"; DestDir: "{app}\Documentation\docs"; Flags: ignoreversion
+Source: "{#ProjectDir}\docs\USAGE-1.4.1.md"; DestDir: "{app}\Documentation\docs"; Flags: ignoreversion
 Source: "{#ProjectDir}\docs\UPDATE-VALIDATION.md"; DestDir: "{app}\Documentation\docs"; Flags: ignoreversion
 Source: "{#ProjectDir}\docs\MERGE-NOTES.md"; DestDir: "{app}\Documentation\docs"; Flags: ignoreversion
 Source: "{#ProjectDir}\scripts\Get-LoadDiagnostics.ps1"; DestDir: "{app}\Documentation"; Flags: ignoreversion

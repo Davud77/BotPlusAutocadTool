@@ -1,4 +1,4 @@
-param([string]$ReferenceDrawing, [string]$Label='gost14', [switch]$SyntheticGost, [ValidateSet(2026,2027)][int]$Year=2026)
+param([string]$ReferenceDrawing, [string]$Label='gost14', [switch]$SyntheticGost, [switch]$Transparency141, [ValidateSet(2026,2027)][int]$Year=2026)
 $ErrorActionPreference = 'Stop'
 function Invoke-Cad([scriptblock]$Operation) {
     $until = [DateTime]::UtcNow.AddSeconds(45)
@@ -28,17 +28,18 @@ $drawing = Join-Path $directory 'fixture.dwg'
 Copy-Item -LiteralPath $(if ($ReferenceDrawing) { $ReferenceDrawing } else { Join-Path $root 'Assets/WM_FORMAT.dwg' }) -Destination $drawing
 $priorData = $env:BOTPLUS_DATA_DIRECTORY
 $priorGost = $env:BOTPLUS_GOST_DRAWING
-$application = $null; $document = $null; $oldSecure = $null
+$application = $null; $document = $null; $oldSecure = $null; $oldTransparency = $null
 try {
     $env:BOTPLUS_DATA_DIRECTORY = Join-Path $directory 'data'
     New-Item -ItemType Directory -Path $env:BOTPLUS_DATA_DIRECTORY -Force | Out-Null
     [IO.File]::WriteAllText((Join-Path $env:BOTPLUS_DATA_DIRECTORY 'settings.json'), '{"AutoCheckUpdates":false}')
-    $env:BOTPLUS_GOST_DRAWING = if ($SyntheticGost) { 'matrix' } elseif ($ReferenceDrawing) { '1' } else { '0' }
+    $env:BOTPLUS_GOST_DRAWING = if ($Transparency141) { 'transparency' } elseif ($SyntheticGost) { 'matrix' } elseif ($ReferenceDrawing) { '1' } else { '0' }
     $progid = if ($Year -eq 2026) { 'AutoCAD.Application.25.1' } else { 'AutoCAD.Application.26' }
     $application = New-Object -ComObject $progid
     Invoke-Cad { $application.Visible = $false }
     $document = Invoke-Cad { $application.Documents.Open($drawing, $false) }
     $oldSecure = Invoke-Cad { $document.GetVariable('SECURELOAD') }
+    $oldTransparency = Invoke-Cad { $document.GetVariable('PLOTTRANSPARENCYOVERRIDE') }
     Invoke-Cad { $document.SetVariable('SECURELOAD', [int16]0) }
     $framework = if ($Year -eq 2026) { 'net8.0-windows' } else { 'net10.0-windows' }
     $check = Join-Path $root "tests/PublishDesktopChecks/bin/Release/$framework/PublishDesktopChecks.dll"
@@ -62,6 +63,7 @@ try {
     throw "Desktop publication timed out: $report"
 }
 finally {
+    if ($document -and $null -ne $oldTransparency) { try { $document.SetVariable('PLOTTRANSPARENCYOVERRIDE', $oldTransparency) } catch {} }
     if ($document -and $null -ne $oldSecure) { try { $document.SetVariable('SECURELOAD', $oldSecure) } catch {} }
     if ($document) { try { $document.Close($false) } catch {} }
     if ($application) { try { $application.Quit() } catch {} }

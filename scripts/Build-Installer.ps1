@@ -7,6 +7,8 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $version = ([xml](Get-Content -LiteralPath (Join-Path $root 'BotPlusAutocadTool.csproj') -Raw)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+$parsedVersion = [version]$version
+$fileVersion = [version]::new($parsedVersion.Major, $parsedVersion.Minor, [Math]::Max(0,$parsedVersion.Build), [Math]::Max(0,$parsedVersion.Revision)).ToString()
 if (!(Test-Path -LiteralPath $CompilerPath)) { throw 'Inno Setup compiler not found.' }
 if (!$BundlePath) {
     $buildOutput = & (Join-Path $PSScriptRoot 'Build-Bundle.ps1') -AutoCAD2027Path $AutoCAD2027Path
@@ -34,7 +36,7 @@ foreach ($folder in @('2025-2026','2027')) {
 & (Join-Path $PSScriptRoot 'Collect-Notices.ps1') -BundlePath $BundlePath
 $release = if ($ReleaseDirectory) { [IO.Path]::GetFullPath($ReleaseDirectory) } else { Join-Path $root 'artifacts\release' }
 New-Item -ItemType Directory -Path $release -Force | Out-Null
-& $CompilerPath "/DAppVersion=$version" "/DBundleDir=$BundlePath" "/DReleaseDir=$release" (Join-Path $root 'installer\BotPlusAutocadTool.iss')
+& $CompilerPath "/DAppVersion=$version" "/DAppFileVersion=$fileVersion" "/DBundleDir=$BundlePath" "/DReleaseDir=$release" (Join-Path $root 'installer\BotPlusAutocadTool.iss')
 if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed.' }
 $zip = Join-Path $release "BotPlusAutocadTool-$version-Bundle.zip"
 Compress-Archive -LiteralPath $BundlePath -DestinationPath $zip -Force

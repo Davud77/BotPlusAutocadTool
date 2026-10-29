@@ -15,18 +15,18 @@ namespace BotPlusAutocadTool.Services
         public static bool IsBusy => _job != null;
 
         public static bool Publish(string dsdPath, string pdfPath, string outputPath,
-            IReadOnlyList<BatchPlotItem> items, bool separateSheets, bool background, bool openFolder = false, bool openFile = false, bool keepExisting = false)
+            IReadOnlyList<BatchPlotItem> items, bool separateSheets, bool background, bool openFolder = false, bool openFile = false, bool keepExisting = false, bool plotTransparency = false)
         {
             var doc = AcadApp.DocumentManager.MdiActiveDocument;
             if (doc == null || IsBusy || !File.Exists(dsdPath)) return false;
-            var job = new PublishJob(doc, dsdPath, pdfPath, outputPath, items, separateSheets, background, openFolder, openFile, keepExisting);
+            var job = new PublishJob(doc, dsdPath, pdfPath, outputPath, items, separateSheets, background, openFolder, openFile, keepExisting, plotTransparency);
             _job = job;
             try
             {
                 job.Subscribe();
                 var path = dsdPath.Replace("\\", "/").Replace("\"", "\\\"");
                 // Background publication opens the DWG from disk; persist the generated page setups first.
-                doc.SendStringToExecute($"(progn (setvar \"FILEDIA\" 0) (setvar \"BACKGROUNDPLOT\" {(background ? 3 : 0)}) (command \"_.QSAVE\") (command \"_.-PUBLISH\" \"{path}\") (princ)) ", true, false, false);
+                doc.SendStringToExecute($"(progn (setvar \"FILEDIA\" 0) (setvar \"BACKGROUNDPLOT\" {(background ? 3 : 0)}) (setvar \"PLOTTRANSPARENCYOVERRIDE\" {(plotTransparency ? 2 : 0)}) (command \"_.QSAVE\") (command \"_.-PUBLISH\" \"{path}\") (princ)) ", true, false, false);
                 return true;
             }
             catch { job.Dispose(); throw; }
@@ -43,6 +43,8 @@ namespace BotPlusAutocadTool.Services
             private readonly bool _keepExisting;
             private readonly bool _openFolder, _openFile;
             private readonly object _oldFileDia, _oldBackgroundPlot;
+            private readonly object _oldTransparencyOverride;
+            private readonly int _ownedTransparencyOverride;
             private readonly int _ownedBackgroundPlot;
             private readonly string[] _sourcePages;
             private readonly DateTime _created = DateTime.UtcNow;
@@ -51,7 +53,7 @@ namespace BotPlusAutocadTool.Services
             private bool _started, _finished, _failed, _disposed;
 
             public PublishJob(Document doc, string dsdPath, string pdfPath, string outputPath,
-                IReadOnlyList<BatchPlotItem> items, bool separateSheets, bool background, bool openFolder, bool openFile, bool keepExisting)
+                IReadOnlyList<BatchPlotItem> items, bool separateSheets, bool background, bool openFolder, bool openFile, bool keepExisting, bool plotTransparency)
             {
                 _doc = doc; _pdfPath = pdfPath; _outputPath = outputPath;
                 using (var data = new DsdData())
@@ -78,6 +80,8 @@ namespace BotPlusAutocadTool.Services
                 _ownedBackgroundPlot = background ? 3 : 0;
                 _oldFileDia = AcadApp.GetSystemVariable("FILEDIA");
                 _oldBackgroundPlot = AcadApp.GetSystemVariable("BACKGROUNDPLOT");
+                _oldTransparencyOverride = AcadApp.GetSystemVariable("PLOTTRANSPARENCYOVERRIDE");
+                _ownedTransparencyOverride = plotTransparency ? 2 : 0;
             }
 
             public void Subscribe()
@@ -217,6 +221,7 @@ namespace BotPlusAutocadTool.Services
                 AcadApp.Idle -= OnIdle;
                 try { if (Convert.ToInt32(AcadApp.GetSystemVariable("FILEDIA")) == 0) AcadApp.SetSystemVariable("FILEDIA", _oldFileDia); } catch { }
                 try { if (Convert.ToInt32(AcadApp.GetSystemVariable("BACKGROUNDPLOT")) == _ownedBackgroundPlot) AcadApp.SetSystemVariable("BACKGROUNDPLOT", _oldBackgroundPlot); } catch { }
+                try { if (Convert.ToInt32(AcadApp.GetSystemVariable("PLOTTRANSPARENCYOVERRIDE")) == _ownedTransparencyOverride) AcadApp.SetSystemVariable("PLOTTRANSPARENCYOVERRIDE", _oldTransparencyOverride); } catch { }
                 if (ReferenceEquals(_job, this)) _job = null;
             }
         }

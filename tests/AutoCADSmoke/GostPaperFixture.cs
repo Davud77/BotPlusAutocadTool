@@ -7,6 +7,27 @@ using BotPlusAutocadTool.Services;
 
 public static class GostPaperFixture
 {
+    public static BatchPlotItem BuildTransparencyA2(Database db)
+    {
+        using var tr = db.TransactionManager.StartTransaction();
+        var table = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForWrite);
+        var definition = new BlockTableRecord { Name = "BOTPLUS_A2_141_" + Guid.NewGuid().ToString("N") };
+        table.Add(definition); tr.AddNewlyCreatedDBObject(definition,true);
+        var outline = new Polyline();
+        foreach (var point in new[] {new Point2d(0,0),new Point2d(594,0),new Point2d(594,420),new Point2d(0,420)})
+            outline.AddVertexAt(outline.NumberOfVertices,point,0,0,0);
+        outline.Closed=true; definition.AppendEntity(outline); tr.AddNewlyCreatedDBObject(outline,true);
+        var solid = new Solid(new Point3d(200,150,0),new Point3d(300,150,0),new Point3d(200,250,0),new Point3d(300,250,0))
+        {Color=Autodesk.AutoCAD.Colors.Color.FromRgb(0,0,0),Transparency=new Autodesk.AutoCAD.Colors.Transparency((byte)127)};
+        definition.AppendEntity(solid); tr.AddNewlyCreatedDBObject(solid,true);
+        var model = (BlockTableRecord)tr.GetObject(table[BlockTableRecord.ModelSpace],OpenMode.ForWrite);
+        var block = new BlockReference(new Point3d(11000,21000,0),definition.ObjectId);
+        model.AppendEntity(block); tr.AddNewlyCreatedDBObject(block,true);
+        var item = new BatchPlotItem {BlockId=block.ObjectId,Extents=block.GeometricExtents,PlotScale=1,Format="A2",
+            FormatDefinition=new PaperFormatDefinition("A2",594,420),Name="A2",SheetNumber="141",IsSelected=true};
+        tr.Commit();return item;
+    }
+
     // Independent transcription of GOST 2.301-68 tables 1/2, including optional A5.
     private static readonly (string Name, double Width, double Height)[] Papers =
     {

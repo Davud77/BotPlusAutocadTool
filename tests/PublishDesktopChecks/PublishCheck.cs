@@ -17,6 +17,9 @@ public sealed class PublishCheck
     private static Document _document;
     private static List<BatchPlotItem> _items;
     private static int _stage, _oldFileDia, _oldBackground, _stageCount;
+    private static bool _transparency141;
+    private static int _stageTransparencyOriginal;
+    private static object _initialTransparencyOverride;
     private static DateTime _deadline;
     private static string Pdf(int stage) => Path.Combine(_directory, "temporary", "stage-" + stage, "Result.pdf");
     private static string Dsd(int stage) => Path.Combine(_directory, "publish-" + stage + ".dsd");
@@ -37,9 +40,19 @@ public sealed class PublishCheck
             Log("PDF API: " + string.Join("; ", typeof(PdfPostProcessingService).GetMethods().Where(m => m.Name == "DeliverPdf").Select(m => m.ToString())));
             _oldFileDia = Convert.ToInt32(AcadApp.GetSystemVariable("FILEDIA"));
             _oldBackground = Convert.ToInt32(AcadApp.GetSystemVariable("BACKGROUNDPLOT"));
+            _initialTransparencyOverride = AcadApp.GetSystemVariable("PLOTTRANSPARENCYOVERRIDE");
             bool matrix = Environment.GetEnvironmentVariable("BOTPLUS_GOST_DRAWING") == "matrix";
+            _transparency141 = Environment.GetEnvironmentVariable("BOTPLUS_GOST_DRAWING") == "transparency";
             _stageCount = matrix ? 1 : 2;
-            if (matrix) _items = GostPaperFixture.Build(_document.Database);
+            if (_transparency141)
+            {
+                _items = new List<BatchPlotItem> { GostPaperFixture.BuildTransparencyA2(_document.Database) };
+                using var view = _document.Editor.GetCurrentView();
+                view.ViewDirection = Vector3d.ZAxis; view.Target = new Point3d(10000,20000,0);
+                view.ViewTwist = Math.PI/2; view.CenterPoint = Point2d.Origin; view.Width = 2000; view.Height = 1500;
+                _document.Editor.SetCurrentView(view);
+            }
+            else if (matrix) _items = GostPaperFixture.Build(_document.Database);
             else if (Environment.GetEnvironmentVariable("BOTPLUS_GOST_DRAWING") == "1")
             {
                 _items = new BatchPlotService { PlotScale = 1, SearchOrder = PlotSearchOrder.LeftToRight }.GetFormatBlocks()
@@ -59,7 +72,7 @@ public sealed class PublishCheck
             for (int stage = 0; stage < _stageCount; stage++)
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(Pdf(stage)));
-                if (!BlockExportStage1Service.Run(_document, Dsd(stage), _items, Pdf(stage))) throw new InvalidOperationException("DSD creation failed");
+                if (!BlockExportStage1Service.Run(_document, Dsd(stage), _items, Pdf(stage), _transparency141 && stage == 1)) throw new InvalidOperationException("DSD creation failed");
             }
             File.WriteAllLines(Path.Combine(_directory, "frames.tsv"), _items.Select(i => string.Join("\t", i.SheetNumber, i.Format,
                 i.PlotWidthMm.ToString(System.Globalization.CultureInfo.InvariantCulture), i.PlotHeightMm.ToString(System.Globalization.CultureInfo.InvariantCulture), i.PlotScale)));
@@ -78,7 +91,9 @@ public sealed class PublishCheck
     private static void StartStage()
     {
         _deadline = DateTime.UtcNow.AddMinutes(8);
-        if (!DsdPublishService.Publish(Dsd(_stage), Pdf(_stage), Output(_stage), _items, _stage == 1, _stage == 1, keepExisting: _stage == 0))
+        if (_transparency141) AcadApp.SetSystemVariable("PLOTTRANSPARENCYOVERRIDE", _stage == 0 ? 2 : 0);
+        _stageTransparencyOriginal = Convert.ToInt32(AcadApp.GetSystemVariable("PLOTTRANSPARENCYOVERRIDE"));
+        if (!DsdPublishService.Publish(Dsd(_stage), Pdf(_stage), Output(_stage), _items, _stage == 1, _stage == 1, keepExisting: _stage == 0, plotTransparency: _transparency141 && _stage == 1))
             throw new InvalidOperationException("Queue did not start");
         var activeJob = typeof(DsdPublishService).GetField("_job", BindingFlags.Static | BindingFlags.NonPublic).GetValue(null);
         var snapshot = (IReadOnlyList<BatchPlotItem>)activeJob.GetType().GetField("_items", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(activeJob);
@@ -117,7 +132,9 @@ public sealed class PublishCheck
                 throw new InvalidOperationException("Individual sheets were not delivered to custom folder");
             if (Convert.ToInt32(AcadApp.GetSystemVariable("FILEDIA")) != _oldFileDia || Convert.ToInt32(AcadApp.GetSystemVariable("BACKGROUNDPLOT")) != _oldBackground)
                 throw new InvalidOperationException("Publication did not restore system variables");
-            Log("PASS: stage " + _stage + ", PDF postprocessed/delivered, variables restored");
+            if (Convert.ToInt32(AcadApp.GetSystemVariable("PLOTTRANSPARENCYOVERRIDE")) != _stageTransparencyOriginal)
+                throw new InvalidOperationException("Transparency override not restored");
+            Log("PASS: stage " + _stage + ", PDF postprocessed/delivered, variables restored, transparency=" + (_transparency141 && _stage == 1));
             if (++_stage < _stageCount) { Stop(); Log("BOTPLUS_PIPELINE_NEXT"); }
             else
             {
@@ -147,6 +164,7 @@ public sealed class PublishCheck
         if (_document != null) _document.CommandWillStart -= TraceCommand;
         AcadApp.Publisher.EndPublish -= TracePublish;
         DsdPublishService.Shutdown();
+        if (_initialTransparencyOverride != null) AcadApp.SetSystemVariable("PLOTTRANSPARENCYOVERRIDE", _initialTransparencyOverride);
     }
     private static void Fail(System.Exception ex)
     {

@@ -36,6 +36,7 @@ namespace BotPlusAutocadTool.ViewModels
 
         // NEW: галочка "В фоне" -> BACKGROUNDPLOT (3/0)
         private bool _plotInBackground = true;
+        private bool _plotTransparency;
 
         // NEW: общий чекбокс в шапке таблицы (tri-state)
         private bool? _isAllSelected = false;
@@ -128,6 +129,17 @@ namespace BotPlusAutocadTool.ViewModels
             }
         }
 
+        public bool PlotTransparency
+        {
+            get => _plotTransparency;
+            set
+            {
+                if (!SetProperty(ref _plotTransparency, value)) return;
+                SettingsService.Settings.PlotTransparency = value;
+                SettingsService.Save();
+            }
+        }
+
         private string _outputDirectory = SettingsService.Settings.PlotOutputDirectory;
         public string OutputDirectory
         {
@@ -205,6 +217,7 @@ namespace BotPlusAutocadTool.ViewModels
             _service.BlockName = filter.Value<string>("Block") ?? BatchPlotService.DefaultBlockName;
             _service.LayerName = filter.Value<string>("Layer") ?? BatchPlotService.DefaultLayerName;
             _plotInBackground = SettingsService.Settings.PlotInBackground;
+            _plotTransparency = SettingsService.Settings.PlotTransparency;
 
             AllFormatNames = _service.GetDefinedFormatNames();
             Items = new ObservableCollection<BatchPlotItem>();
@@ -542,7 +555,7 @@ namespace BotPlusAutocadTool.ViewModels
                 string pdfPath = Path.Combine(jobDirectory, "Result.pdf");
 
                 // 1) Генерируем DSD и PageSetup'ы с учетом выбранных листов
-                bool dsdReady = BlockExportStage1Service.Run(doc, dsdPath, selected, pdfPath);
+                bool dsdReady = BlockExportStage1Service.Run(doc, dsdPath, selected, pdfPath, PlotTransparency);
 
                 if (!dsdReady)
                 {
@@ -558,7 +571,7 @@ namespace BotPlusAutocadTool.ViewModels
 
                 // 3) Запускаем -PUBLISH
                 bool ok = DsdPublishService.Publish(dsdPath, pdfPath, outputPath, selected, separateSheets, PlotInBackground,
-                    SettingsService.Settings.OpenFolderAfterPlot, SettingsService.Settings.OpenFileAfterPlot, SettingsService.Settings.KeepExistingPdfFiles);
+                    SettingsService.Settings.OpenFolderAfterPlot, SettingsService.Settings.OpenFileAfterPlot, SettingsService.Settings.KeepExistingPdfFiles, PlotTransparency);
 
                 if (!ok)
                 {
