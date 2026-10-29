@@ -7,6 +7,7 @@ using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
+using Autodesk.AutoCAD.PlottingServices;
 using BotPlusAutocadTool.Models;
 using BotPlusAutocadTool.Services;
 using AcadApp = Autodesk.AutoCAD.ApplicationServices.Application;
@@ -53,6 +54,27 @@ public sealed class PublishCheck
                 _document.Editor.SetCurrentView(view);
             }
             else if (matrix) _items = GostPaperFixture.Build(_document.Database);
+            else if (int.TryParse(Environment.GetEnvironmentVariable("BOTPLUS_TEST_UNIT_CODE"), out int unitCode) && unitCode > 0)
+            {
+                var db = _document.Database;
+                var all = GostPaperFixture.Build(db);
+                double factor = PlotUnits.Get(unitCode).MillimetersPerUnit;
+                using (var tr = db.TransactionManager.StartTransaction())
+                {
+                    foreach (var item in all)
+                    {
+                        var block = (BlockReference)tr.GetObject(item.BlockId, OpenMode.ForWrite);
+                        block.TransformBy(Matrix3d.Scaling(1 / factor, Point3d.Origin));
+                        item.Extents = block.GeometricExtents;
+                    }
+                    var model = (Layout)tr.GetObject(LayoutManager.Current.GetLayoutId("Model"), OpenMode.ForWrite);
+                    PlotSettingsValidator.Current.SetPlotPaperUnits(model, PlotPaperUnit.Inches);
+                    tr.Commit();
+                }
+                db.Insunits = (UnitsValue)unitCode;
+                db.Measurement = (MeasurementValue)(unitCode == 1 ? 1 : 0);
+                _items = all.Where(i => i.FormatDefinition.Name == "A2" || i.FormatDefinition.Name == "A0x3").ToList();
+            }
             else if (Environment.GetEnvironmentVariable("BOTPLUS_GOST_DRAWING") == "1")
             {
                 _items = new BatchPlotService { PlotScale = 1, SearchOrder = PlotSearchOrder.LeftToRight }.GetFormatBlocks()
@@ -98,7 +120,8 @@ public sealed class PublishCheck
         var activeJob = typeof(DsdPublishService).GetField("_job", BindingFlags.Static | BindingFlags.NonPublic).GetValue(null);
         var snapshot = (IReadOnlyList<BatchPlotItem>)activeJob.GetType().GetField("_items", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(activeJob);
         for (int i = 0; i < snapshot.Count; i++)
-            if (ReferenceEquals(snapshot[i], _items[i]) || snapshot[i].PlotWidthMm != _items[i].PlotWidthMm || snapshot[i].PlotHeightMm != _items[i].PlotHeightMm)
+            if (ReferenceEquals(snapshot[i], _items[i]) || snapshot[i].PlotWidthMm != _items[i].PlotWidthMm || snapshot[i].PlotHeightMm != _items[i].PlotHeightMm ||
+                snapshot[i].MillimetersPerDrawingUnit != _items[i].MillimetersPerDrawingUnit || snapshot[i].DrawingUnitsOverride != _items[i].DrawingUnitsOverride)
                 throw new InvalidOperationException("Publication snapshot lost frame dimensions");
         if (_stage == 1)
         {

@@ -1,0 +1,53 @@
+name: Build and publish release
+on:
+  push:
+    branches: [main]
+    paths: [BotPlusAutocadTool.csproj]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: publish-release
+  cancel-in-progress: false
+jobs:
+  release:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.head_commit.message, 'Release ')
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+      - name: Verify source and behavior
+        shell: pwsh
+        run: ./scripts/Test.ps1
+      - name: Build installer and bundle
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $compiler = @('C:/Program Files (x86)/Inno Setup 6/ISCC.exe', 'C:/Program Files/Inno Setup 6/ISCC.exe') | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+          if (!$compiler) {
+            choco install innosetup --yes --no-progress
+            if ($LASTEXITCODE -ne 0) { throw 'Inno Setup installation failed.' }
+            $compiler = 'C:/Program Files (x86)/Inno Setup 6/ISCC.exe'
+          }
+          ./scripts/Build-Installer.ps1 -CompilerPath $compiler
+      - name: Test installer in an isolated folder
+        shell: pwsh
+        run: |
+          $version = ([xml](Get-Content BotPlusAutocadTool.csproj -Raw)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+          ./scripts/Test-Installer.ps1 -InstallerPath "artifacts/release/BotPlusAutocadTool-$version-Setup.exe"
+      - name: Publish checked release assets
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = ([xml](Get-Content BotPlusAutocadTool.csproj -Raw)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+          $notes = "docs/RELEASE-$version.md"
+          if (!(Test-Path -LiteralPath $notes)) { throw "Missing release notes: $notes" }
+          $assets = @("artifacts/release/BotPlusAutocadTool-$version-Setup.exe", "artifacts/release/BotPlusAutocadTool-$version-Bundle.zip", "artifacts/release/SHA256SUMS-$version.txt")
+          gh release create "v$version" @assets --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "BotPlus AT $version" --notes-file $notes --latest
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed.' }

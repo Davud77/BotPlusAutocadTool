@@ -72,7 +72,9 @@ namespace BotPlusAutocadTool.Services
                     FormatDefinition = item.FormatDefinition,
                     PlotWidthMm = item.PlotWidthMm,
                     PlotHeightMm = item.PlotHeightMm,
-                    PlotScale = item.PlotScale
+                    PlotScale = item.PlotScale,
+                    DrawingUnitsOverride = item.DrawingUnitsOverride,
+                    MillimetersPerDrawingUnit = item.MillimetersPerDrawingUnit
                 }).ToArray();
                 _separateSheets = separateSheets;
                 _keepExisting = keepExisting;

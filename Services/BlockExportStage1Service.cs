@@ -73,6 +73,11 @@ namespace BotPlusAutocadTool.Services
                 return false;
             }
 
+            var unitChoices = printItems.Select(i => i.DrawingUnitsOverride).Distinct().ToArray();
+            if (unitChoices.Length != 1) throw new InvalidOperationException("Единицы листов одного задания должны совпадать. Обновите список печати.");
+            var drawingUnits = BatchPlotService.ResolveDrawingUnits(db, unitChoices[0], printItems);
+            ed.WriteMessage($"\n[BotPlus AT] Единицы печати: {drawingUnits.Description}\n");
+
             string plotterPath = PdfPlotterService.EnsureInstalled();
             var mediaOptions = ReadMediaOptions();
             ed.WriteMessage($"\n[BotPlus AT] Подготовка DSD для {printItems.Count} листов...\n");
@@ -121,7 +126,7 @@ namespace BotPlusAutocadTool.Services
                             psDict.UpgradeOpen();
                         }
 
-                        ApplyPlotSettingsForItem(ps, item, ed, tr, mediaOptions, transparency);
+                        ApplyPlotSettingsForItem(ps, item, ed, tr, mediaOptions, transparency, drawingUnits);
                         pageSetupCache[cacheKey] = setupName;
                     }
                     else
@@ -155,6 +160,8 @@ namespace BotPlusAutocadTool.Services
                         Media = prepared.CanonicalMediaName, Paper = new[] { prepared.PlotPaperSize.X, prepared.PlotPaperSize.Y },
                         Window = new[] { prepared.PlotWindowArea.MinPoint.X, prepared.PlotWindowArea.MinPoint.Y,
                             prepared.PlotWindowArea.MaxPoint.X, prepared.PlotWindowArea.MaxPoint.Y },
+                        Units = prepared.PlotPaperUnits.ToString(), UseStandardScale = prepared.UseStandardScale,
+                        CustomScale = new[] { prepared.CustomPrintScale.Numerator, prepared.CustomPrintScale.Denominator },
                         Scale = item.PlotScale, Transparency = prepared.PlotTransparency
                     });
                     sheetIndex++;
@@ -182,6 +189,8 @@ namespace BotPlusAutocadTool.Services
                 {
                     PluginVersion = typeof(BlockExportStage1Service).Assembly.GetName().Version.ToString(),
                     AutoCAD = Application.GetSystemVariable("ACADVER"), Plotter = plotterPath,
+                    DrawingUnits = new { Insunits = (int)db.Insunits, Measurement = (int)db.Measurement,
+                        Effective = drawingUnits.Unit.Code, drawingUnits.MillimetersPerUnit, drawingUnits.Source, drawingUnits.IsAssumed },
                     Target = new[] { view.Target.X, view.Target.Y, view.Target.Z },
                     Direction = new[] { view.ViewDirection.X, view.ViewDirection.Y, view.ViewDirection.Z }, Twist = view.ViewTwist,
                     Sheets = diagnostics
@@ -199,7 +208,7 @@ namespace BotPlusAutocadTool.Services
         }
 
         private static void ApplyPlotSettingsForItem(PlotSettings ps, BatchPlotItem item, Editor ed, Transaction tr,
-            List<(string Name, double Width, double Height)> mediaOptions, bool plotTransparency)
+            List<(string Name, double Width, double Height)> mediaOptions, bool plotTransparency, PlotUnitContext drawingUnits)
         {
             PlotSettingsValidator psv = PlotSettingsValidator.Current;
 
@@ -208,28 +217,31 @@ namespace BotPlusAutocadTool.Services
                 psv.RefreshLists(ps);
                 psv.SetPlotConfigurationName(ps, PlotterName, null);
                 psv.RefreshLists(ps);
-                psv.SetPlotPaperUnits(ps, PlotPaperUnit.Millimeters);
                 psv.SetPlotRotation(ps, PlotRotation.Degrees000);
 
                 if (!TryBuildPlotWindowDcsFromFramePolyline(tr, ed, item.BlockId, out Extents2d windowDcs))
                     windowDcs = BuildWindowDcs(ed, new[] { item.Extents.MinPoint, item.Extents.MaxPoint,
                         new Point3d(item.Extents.MinPoint.X, item.Extents.MaxPoint.Y, 0),
                         new Point3d(item.Extents.MaxPoint.X, item.Extents.MinPoint.Y, 0) });
-                item.PlotWidthMm = (windowDcs.MaxPoint.X - windowDcs.MinPoint.X) / item.PlotScale;
-                item.PlotHeightMm = (windowDcs.MaxPoint.Y - windowDcs.MinPoint.Y) / item.PlotScale;
+                item.MillimetersPerDrawingUnit = drawingUnits.MillimetersPerUnit;
+                item.PlotWidthMm = PlotUnits.PaperLength(windowDcs.MaxPoint.X - windowDcs.MinPoint.X, drawingUnits.MillimetersPerUnit, item.PlotScale);
+                item.PlotHeightMm = PlotUnits.PaperLength(windowDcs.MaxPoint.Y - windowDcs.MinPoint.Y, drawingUnits.MillimetersPerUnit, item.PlotScale);
 
                 string media = mediaOptions.Where(m => m.Width + 0.01 >= item.PlotWidthMm && m.Height + 0.01 >= item.PlotHeightMm)
                     .OrderBy(m => m.Width * m.Height).Select(m => m.Name).FirstOrDefault();
                 if (media == null)
                     throw new InvalidOperationException($"Нет бумаги для рамки {item.PlotWidthMm:F2}×{item.PlotHeightMm:F2} мм.");
                 psv.SetCanonicalMediaName(ps, media);
+                // Selecting media can restore inches inherited from the drawing's page setup.
+                // Set units after media, before applying the millimeter-based print scale.
+                psv.SetPlotPaperUnits(ps, PlotPaperUnit.Millimeters);
                 psv.SetPlotWindowArea(ps, windowDcs);
                 psv.SetPlotType(ps, Autodesk.AutoCAD.DatabaseServices.PlotType.Window);
                 ps.PlotTransparency = plotTransparency;
                 // All supported frames use zero-margin paper, their exact print scale,
                 // and a common lower-left origin. No fitting or centering of long sheets.
                 psv.SetUseStandardScale(ps, false);
-                psv.SetCustomPrintScale(ps, new CustomScale(1, item.PlotScale));
+                psv.SetCustomPrintScale(ps, new CustomScale(drawingUnits.MillimetersPerUnit, item.PlotScale));
                 psv.SetPlotCentered(ps, false);
                 psv.SetPlotOrigin(ps, new Point2d(0, 0));
             }
@@ -329,7 +341,7 @@ namespace BotPlusAutocadTool.Services
                     if (!IsRectFrame(pl)) continue;
 
                     double area = SafeArea(pl);
-                    if (area <= 1e-6) continue;
+                    if (!double.IsFinite(area) || area <= 0) continue;
 
                     if (area > bestArea)
                     {
@@ -351,7 +363,7 @@ namespace BotPlusAutocadTool.Services
                     if (!IsRectFrame(p2d, tr, out var ptsLocal)) continue;
 
                     double area = SafeArea(ptsLocal);
-                    if (area <= 1e-6) continue;
+                    if (!double.IsFinite(area) || area <= 0) continue;
 
                     if (area > bestArea)
                     {

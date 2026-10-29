@@ -9,11 +9,12 @@ namespace BotPlusAutocadTool.Services
 {
     internal static class PlotIndexService
     {
-        internal static ObjectId Insert(Database database, IReadOnlyList<BatchPlotItem> items, Point3d point, int scale)
+        internal static ObjectId Insert(Database database, IReadOnlyList<BatchPlotItem> items, Point3d point, int scale, int? drawingUnitsOverride = null)
         {
             if (items == null || items.Count == 0) throw new ArgumentException("Выберите листы для таблицы.");
             if (items.Count > 10000) throw new ArgumentException("Для одной ведомости допустимо до 10000 листов.");
             if (scale != 1 && scale != 100) throw new ArgumentOutOfRangeException(nameof(scale));
+            double sizeScale = scale / BatchPlotService.ResolveDrawingUnits(database, drawingUnitsOverride, items).MillimetersPerUnit;
             using var tr = database.TransactionManager.StartTransaction();
             var model = (BlockTableRecord)tr.GetObject(SymbolUtilityServices.GetBlockModelSpaceId(database), OpenMode.ForWrite);
             using var table = new Table { Position = point, TableStyle = database.Tablestyle };
@@ -21,7 +22,7 @@ namespace BotPlusAutocadTool.Services
             table.SuppressRegenerateTable(true);
             try
             {
-                table.SetRowHeight(8 * scale); table.Columns[0].Width = 20 * scale; table.Columns[1].Width = 150 * scale;
+                table.SetRowHeight(8 * sizeScale); table.Columns[0].Width = 20 * sizeScale; table.Columns[1].Width = 150 * sizeScale;
                 table.Cells[0, 0].TextString = "Ведомость чертежей";
                 table.Cells[1, 0].TextString = "Лист"; table.Cells[1, 1].TextString = "Наименование";
                 for (int i = 0; i < items.Count; i++)
@@ -30,7 +31,7 @@ namespace BotPlusAutocadTool.Services
                     table.Cells[i + 2, 1].TextString = items[i].Name ?? "";
                 }
                 for (int row = 0; row < table.Rows.Count; row++)
-                    for (int column = 0; column < 2; column++) table.Cells[row, column].TextHeight = 2.5 * scale;
+                    for (int column = 0; column < 2; column++) table.Cells[row, column].TextHeight = 2.5 * sizeScale;
                 table.MergeCells(CellRange.Create(table, 0, 0, 0, 1));
             }
             finally { table.SuppressRegenerateTable(false); }

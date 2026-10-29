@@ -3,6 +3,8 @@ param(
     [switch]$Benchmark,
     [switch]$Plot,
     [switch]$Plot141,
+    [switch]$Units,
+    [switch]$UnitInsert,
     [switch]$WidePlot,
     [switch]$IsolatedPlotters,
     [string]$ReferenceDrawing,
@@ -27,7 +29,7 @@ if (!$PluginPath) {
 dotnet build (Join-Path $root 'tests\AutoCADSmoke\AutoCADSmoke.csproj') -c Release "-p:AutoCADVersion=$Year" -v quiet *> (Join-Path $reports "build-smoke-$Year-$Label.log")
 if ($LASTEXITCODE -ne 0) { throw 'Smoke module build failed; see validation log.' }
 $testDll = Join-Path $root "tests\AutoCADSmoke\bin\Release\$framework\AutoCADSmoke.dll"
-$command = if ($Plot141) { 'BOTPLUS_PLOT141TEST' } elseif ($WidePlot) { 'BOTPLUS_WIDEPLOTTEST' } elseif ($Library) { 'BOTPLUS_LIBRARYSETUP' } elseif ($Word) { 'BOTPLUS_WORDTRANSFERTEST' } elseif ($Benchmark) { 'BOTPLUS_BENCHMARK' } elseif ($Plot) { 'BOTPLUS_PLOTTEST' } else { 'BOTPLUS_SMOKETEST' }
+$command = if ($UnitInsert) { 'BOTPLUS_UNITINSERTTEST' } elseif ($Units) { 'BOTPLUS_UNITPLOTTEST' } elseif ($Plot141) { 'BOTPLUS_PLOT141TEST' } elseif ($WidePlot) { 'BOTPLUS_WIDEPLOTTEST' } elseif ($Library) { 'BOTPLUS_LIBRARYSETUP' } elseif ($Word) { 'BOTPLUS_WORDTRANSFERTEST' } elseif ($Benchmark) { 'BOTPLUS_BENCHMARK' } elseif ($Plot) { 'BOTPLUS_PLOTTEST' } else { 'BOTPLUS_SMOKETEST' }
 $script = Join-Path $reports "test-$Year-$Label.scr"
 $log = Join-Path $reports "test-$Year-$Label.log"
 # The temporary Core Console profile cannot change SECURELOAD in the user's profile.
@@ -68,8 +70,8 @@ $text = [IO.File]::ReadAllText($log, [Text.Encoding]::Unicode)
 # Native wide stdout and PowerShell can leave mixed CR/LF code units in redirected logs.
 $text = $text.Replace([string][char]0x0A0D, '').Replace([string][char]0x0D00, '')
 [IO.File]::WriteAllText($log, $text, [Text.UTF8Encoding]::new($false))
-$marker = if ($Plot141) { 'BOTPLUS_PLOT141_PASS:' } elseif ($WidePlot) { 'BOTPLUS_WIDEPLOT_PASS:' } elseif ($Library) { 'LIBRARY_PASS:' } elseif ($Word) { 'WORD_TRANSFER_PASS:' } elseif ($Benchmark) { 'BOTPLUS_PERF_PASS:' } elseif ($Plot) { 'BOTPLUS_PLOT_PASS:' } else { 'BOTPLUS_SMOKE_PASS:' }
-if ($text -notmatch $marker -or $text -match '(BOTPLUS_(SMOKE|PERF|PLOT|WIDEPLOT)|WORD_TRANSFER|LIBRARY)_FAIL:') { throw "Native checks failed: $log" }
+$marker = if ($UnitInsert) { 'BOTPLUS_UNITINSERT_PASS:' } elseif ($Units) { 'BOTPLUS_UNITS_PASS:' } elseif ($Plot141) { 'BOTPLUS_PLOT141_PASS:' } elseif ($WidePlot) { 'BOTPLUS_WIDEPLOT_PASS:' } elseif ($Library) { 'LIBRARY_PASS:' } elseif ($Word) { 'WORD_TRANSFER_PASS:' } elseif ($Benchmark) { 'BOTPLUS_PERF_PASS:' } elseif ($Plot) { 'BOTPLUS_PLOT_PASS:' } else { 'BOTPLUS_SMOKE_PASS:' }
+if ($text -notmatch $marker -or $text -match '(BOTPLUS_(SMOKE|PERF|PLOT141|PLOT|WIDEPLOT|UNITS|UNITINSERT)|WORD_TRANSFER|LIBRARY)_FAIL:') { throw "Native checks failed: $log" }
 if ($IsolatedPlotters -and !(Test-Path -LiteralPath (Join-Path $customPlotters 'BotPlus PDF.pc3'))) { throw 'Plotter was installed outside the configured printer search path.' }
 $text.Split("`n") | Where-Object { $_ -match 'PASS:' } | ForEach-Object { $_.Trim() }
 Write-Output "Native report: $log"

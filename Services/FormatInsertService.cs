@@ -49,7 +49,7 @@ namespace BotPlusAutocadTool.Services
             }
         }
 
-        public static ObjectId Insert(Database target, ObjectId definitionId, Point3d position, double scale = 1)
+        public static ObjectId Insert(Database target, ObjectId definitionId, Point3d position, double scale = 1, int? drawingUnitsOverride = null)
         {
             if (!double.IsFinite(scale) || scale <= 0 || scale > 1000000) throw new ArgumentOutOfRangeException(nameof(scale));
             // Summary properties must exist before fields are attached/evaluated.
@@ -74,10 +74,12 @@ namespace BotPlusAutocadTool.Services
                 var block = new BlockReference(position, definitionId);
                 block.SetDatabaseDefaults(target);
                 block.LayerId = layerId;
-                block.ScaleFactors = new Scale3d(scale);
+                var definition = (BlockTableRecord)transaction.GetObject(definitionId, OpenMode.ForRead);
+                var units = BatchPlotService.ResolveDrawingUnits(target, drawingUnitsOverride, Array.Empty<Models.BatchPlotItem>());
+                double definitionMm = definition.Units == UnitsValue.Undefined ? 1 : PlotUnits.Get((int)definition.Units).MillimetersPerUnit;
+                block.ScaleFactors = new Scale3d(scale * definitionMm / units.MillimetersPerUnit);
                 var result = space.AppendEntity(block);
                 transaction.AddNewlyCreatedDBObject(block, true);
-                var definition = (BlockTableRecord)transaction.GetObject(definitionId, OpenMode.ForRead);
                 foreach (ObjectId id in definition)
                 {
                     if (!(transaction.GetObject(id, OpenMode.ForRead) is AttributeDefinition attribute) || attribute.Constant) continue;

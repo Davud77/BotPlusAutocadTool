@@ -7,16 +7,17 @@ from PIL import Image, ImageDraw
 
 parser = argparse.ArgumentParser()
 parser.add_argument("directory", type=Path)
+parser.add_argument("--expected-count", type=int, default=100)
 args = parser.parse_args()
 folder = args.directory
 expected = [row.split("\t") for row in (folder / "frames.tsv").read_text(encoding="utf-8-sig").splitlines()]
 pdf = folder / "drawing_Binder_2.pdf"
 reader = pypdf.PdfReader(pdf)
-assert len(expected) == len(reader.pages) == 100
+assert len(expected) == len(reader.pages) == args.expected_count
 document = pdfium.PdfDocument(pdf)
 pt = 72 / 25.4
 minimum = 10**9
-proof = Image.new("RGB", (640, 100 * 80), "#eeeeee")
+proof = Image.new("RGB", (640, len(expected) * 80), "#eeeeee")
 draw = ImageDraw.Draw(proof)
 for i, (page, row) in enumerate(zip(reader.pages, expected)):
     sheet, name, w, h, scale = row
@@ -38,6 +39,6 @@ for i, (page, row) in enumerate(zip(reader.pages, expected)):
     native.close()
 document.close()
 proof.save(folder / "corner-proof.png")
-message = f"PASS: 100 GOST pages, 400 corner markers, both orientations, 1:1/1:100; minimum dark pixels={minimum}"
+message = f"PASS: {len(expected)} GOST pages, {len(expected)*4} corner markers, both orientations, 1:1/1:100; minimum dark pixels={minimum}"
 (folder / "geometry.log").write_text(message + "\n", encoding="utf-8")
 print(message)

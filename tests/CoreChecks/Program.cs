@@ -9,6 +9,31 @@ Directory.CreateDirectory(results);
 int checks = 0;
 void Assert(bool value, string message) { if (!value) throw new Exception(message); checks++; }
 
+var papers = new[] { (Width: 594.0, Height: 420.0), (Width: 1783.0, Height: 841.0) };
+foreach (var unit in PlotUnits.Definitions)
+foreach (int scale in new[] { 1, 100 })
+foreach (int measurement in new[] { 0, 1 })
+{
+    var frames = papers.Select(p => (Width: p.Width * scale / unit.MillimetersPerUnit,
+        Height: p.Height * scale / unit.MillimetersPerUnit)).ToArray();
+    var resolved = PlotUnits.Resolve(unit.Code, measurement, null, frames, papers, scale);
+    Assert(resolved.Unit.Code == unit.Code && !resolved.IsAssumed, "MEASUREMENT overrode physical units");
+    Assert(Math.Abs(PlotUnits.PaperLength(frames[0].Width, resolved.MillimetersPerUnit, scale) - 594) < 1e-8,
+        "Unit conversion changed physical A2 dimensions: " + unit.Name);
+    if (unit.Code < 21)
+        Assert(PlotUnits.Resolve(0, measurement, null, frames, papers, scale).Unit.Code == unit.Code,
+            "Unitless paper inference failed: " + unit.Name);
+}
+Assert(PlotUnits.Get(1).MillimetersPerUnit == 25.4 && PlotUnits.Get(2).MillimetersPerUnit == 304.8 &&
+    PlotUnits.Get(6).MillimetersPerUnit == 1000 && PlotUnits.Get(7).MillimetersPerUnit == 1000000,
+    "Metric/imperial conversion constants changed");
+var fallbackUnits = PlotUnits.Resolve(0, 0, null, new[] { (500.0, 350.0) }, papers, 1);
+Assert(fallbackUnits.IsAssumed && fallbackUnits.Unit.Code == 4, "Ambiguous unitless drawing silently guessed imperial units");
+Assert(PlotUnits.Resolve(6, 1, 1, Array.Empty<(double, double)>(), papers, 1).Unit.Code == 1,
+    "Explicit per-drawing unit override was ignored");
+try { PlotUnits.PaperLength(1, 1, 0); throw new Exception("Zero plot scale accepted"); }
+catch (ArgumentOutOfRangeException) { checks++; }
+
 var grid = new[] { ("A", 0.0, 100.0), ("B", 100.0, 101.0), ("C", 0.5, 0.0), ("D", 100.5, 0.5) };
 foreach (var scale in new[] { 1, 100 })
 {

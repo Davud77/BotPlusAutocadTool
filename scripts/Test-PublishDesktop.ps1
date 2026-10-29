@@ -1,4 +1,4 @@
-param([string]$ReferenceDrawing, [string]$Label='gost14', [switch]$SyntheticGost, [switch]$Transparency141, [ValidateSet(2026,2027)][int]$Year=2026)
+param([string]$ReferenceDrawing, [string]$Label='gost14', [switch]$SyntheticGost, [switch]$Transparency141, [ValidateSet(0,1,6)][int]$UnitCode=0, [ValidateSet(2026,2027)][int]$Year=2026)
 $ErrorActionPreference = 'Stop'
 function Invoke-Cad([scriptblock]$Operation) {
     $until = [DateTime]::UtcNow.AddSeconds(45)
@@ -28,12 +28,14 @@ $drawing = Join-Path $directory 'fixture.dwg'
 Copy-Item -LiteralPath $(if ($ReferenceDrawing) { $ReferenceDrawing } else { Join-Path $root 'Assets/WM_FORMAT.dwg' }) -Destination $drawing
 $priorData = $env:BOTPLUS_DATA_DIRECTORY
 $priorGost = $env:BOTPLUS_GOST_DRAWING
+$priorUnit = $env:BOTPLUS_TEST_UNIT_CODE
 $application = $null; $document = $null; $oldSecure = $null; $oldTransparency = $null
 try {
     $env:BOTPLUS_DATA_DIRECTORY = Join-Path $directory 'data'
     New-Item -ItemType Directory -Path $env:BOTPLUS_DATA_DIRECTORY -Force | Out-Null
     [IO.File]::WriteAllText((Join-Path $env:BOTPLUS_DATA_DIRECTORY 'settings.json'), '{"AutoCheckUpdates":false}')
     $env:BOTPLUS_GOST_DRAWING = if ($Transparency141) { 'transparency' } elseif ($SyntheticGost) { 'matrix' } elseif ($ReferenceDrawing) { '1' } else { '0' }
+    $env:BOTPLUS_TEST_UNIT_CODE = $UnitCode.ToString()
     $progid = if ($Year -eq 2026) { 'AutoCAD.Application.25.1' } else { 'AutoCAD.Application.26' }
     $application = New-Object -ComObject $progid
     Invoke-Cad { $application.Visible = $false }
@@ -69,4 +71,5 @@ finally {
     if ($application) { try { $application.Quit() } catch {} }
     $env:BOTPLUS_DATA_DIRECTORY = $priorData
     $env:BOTPLUS_GOST_DRAWING = $priorGost
+    $env:BOTPLUS_TEST_UNIT_CODE = $priorUnit
 }

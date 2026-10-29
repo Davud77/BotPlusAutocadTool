@@ -57,6 +57,8 @@ namespace BotPlusAutocadTool.Services
         public string BlockName { get; set; } = DefaultBlockName;
         public string LayerName { get; set; } = DefaultLayerName;
         public int PlotScale { get; set; } = SettingsService.Settings.PlotScale;
+        public int? DrawingUnitsOverride { get; set; }
+        public PlotUnitContext DrawingUnits { get; private set; }
         public PlotSearchOrder SearchOrder { get; set; } = PlotSearchOrder.TopToBottom;
 
         #endregion
@@ -72,7 +74,7 @@ namespace BotPlusAutocadTool.Services
 
         #region Определения форматов (СТРОГО по ГОСТ 2.301-68)
 
-        private readonly List<PaperFormatDefinition> _definedFormats = new List<PaperFormatDefinition>
+        private static readonly List<PaperFormatDefinition> _definedFormats = new List<PaperFormatDefinition>
         {
             // Стандартные форматы (АЛЬБОМНАЯ ориентация: Width > Height)
             new PaperFormatDefinition("A0", 1189, 841),
@@ -214,23 +216,6 @@ namespace BotPlusAutocadTool.Services
                             continue;
                         }
 
-                        // ЦЕЛЫЕ размеры (округление до мм)
-                        double blockWidth = Math.Abs(Math.Round(ext.MaxPoint.X - ext.MinPoint.X, 0));
-                        double blockHeight = Math.Abs(Math.Round(ext.MaxPoint.Y - ext.MinPoint.Y, 0));
-
-                        System.Diagnostics.Debug.WriteLine($"\n[DEBUG] Блок {id.Handle}: размеры {blockWidth:F0}×{blockHeight:F0} мм\n");
-
-                        string detectedFormat = IdentifyFormatBySize(blockWidth / PlotScale, blockHeight / PlotScale, out PaperFormatDefinition matchedDef);
-
-                        if (matchedDef != null)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"[DEBUG] → Определён формат: {detectedFormat} (ГОСТ: {matchedDef.Width}×{matchedDef.Height})\n");
-                        }
-                        else
-                        {
-                            System.Diagnostics.Debug.WriteLine($"[DEBUG] → Нестандартный формат!\n");
-                        }
-
                         // Читаем атрибуты
                         var attrs = GetAttributes(blk, tr);
                         string sheetVal = attrs.TryGetValue(TagSheetNumber.ToUpper(), out string sheet) ? sheet : "";
@@ -243,16 +228,25 @@ namespace BotPlusAutocadTool.Services
                             Extents = ext,
                             Name = nameVal,
                             SheetNumber = sheetVal,
-                            Format = detectedFormat,
+                            Format = "Нестандартный",
                             IsSelected = true,
                             Status = "Готов",
-                            FormatDefinition = matchedDef,
+                            DrawingUnitsOverride = DrawingUnitsOverride,
                             PlotScale = PlotScale
                         };
 
                         items.Add(item);
                     }
 
+                    DrawingUnits = ResolveDrawingUnits(db, DrawingUnitsOverride, items);
+                    foreach (var item in items)
+                    {
+                        item.MillimetersPerDrawingUnit = DrawingUnits.MillimetersPerUnit;
+                        item.Format = IdentifyFormatBySize(
+                            PlotUnits.PaperLength(item.Extents.MaxPoint.X - item.Extents.MinPoint.X, DrawingUnits.MillimetersPerUnit, PlotScale),
+                            PlotUnits.PaperLength(item.Extents.MaxPoint.Y - item.Extents.MinPoint.Y, DrawingUnits.MillimetersPerUnit, PlotScale), out var definition);
+                        item.FormatDefinition = definition;
+                    }
                     tr.Commit();
 
                     doc.Editor.WriteMessage($"\n[BotPlus AT] Просканировано: {scanned} блоков, найдено форматок: {matched}\n");
@@ -268,9 +262,17 @@ namespace BotPlusAutocadTool.Services
             return SortFrames(items);
         }
 
+        public static PlotUnitContext ResolveDrawingUnits(Database db, int? unitsOverride, IEnumerable<BatchPlotItem> items)
+        {
+            var frames = items.ToArray();
+            return PlotUnits.Resolve((int)db.Insunits, (int)db.Measurement, unitsOverride,
+                frames.Select(i => (i.Extents.MaxPoint.X - i.Extents.MinPoint.X, i.Extents.MaxPoint.Y - i.Extents.MinPoint.Y)),
+                _definedFormats.Select(f => (f.Width, f.Height)), frames.FirstOrDefault()?.PlotScale ?? 1);
+        }
+
         public List<BatchPlotItem> SortFrames(IEnumerable<BatchPlotItem> items) =>
             PlotFrameOrdering.Sort(items, i => i.Extents.MinPoint.X, i => i.Extents.MinPoint.Y,
-                SearchOrder, RowToleranceMm * PlotScale);
+                SearchOrder, RowToleranceMm * PlotScale / (DrawingUnits?.MillimetersPerUnit ?? 1));
 
         /// <summary>
         /// Обновление атрибутов блоков в чертеже

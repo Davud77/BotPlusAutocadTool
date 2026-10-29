@@ -80,7 +80,12 @@
                         <TextBox Text="{Binding OutputDirectory, UpdateSourceTrigger=PropertyChanged}" ToolTip="Пусто — сохранить рядом с DWG"/>
                     </DockPanel>
                 </Grid>
-                <CheckBox Content="Учитывать прозрачность" IsChecked="{Binding PlotTransparency}" Margin="0,0,0,10" ToolTip="Печатать прозрачность объектов и слоёв. Выбор сохраняется для следующих заданий."/>
+                <WrapPanel Margin="0,0,0,6" IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}">
+                    <TextBlock Text="Единицы DWG" VerticalAlignment="Center" Margin="0,0,10,6"/>
+                    <ComboBox ItemsSource="{Binding DrawingUnitChoices}" DisplayMemberPath="Name" SelectedValuePath="Code" SelectedValue="{Binding DrawingUnitsChoice}" Width="230" Margin="0,0,12,6" ToolTip="Авто читает INSUNITS текущего файла. Если единицы не заданы, используются размеры рамок. Явный выбор сохраняется отдельно для этого DWG и не меняет его геометрию."/>
+                    <CheckBox Content="Учитывать прозрачность" IsChecked="{Binding PlotTransparency}" VerticalAlignment="Center" Margin="0,0,0,6" ToolTip="Печатать прозрачность объектов и слоёв. Выбор сохраняется для следующих заданий."/>
+                </WrapPanel>
+                <TextBlock Text="{Binding DrawingUnitsDescription}" TextWrapping="Wrap" Margin="0,0,0,10"/>
                 <Border Background="{DynamicResource ControlBackground}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="3" Padding="10" Margin="0,0,0,10">
                     <Grid>
                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><TextBlock Text="{Binding StatusMessage}" FontWeight="Bold" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap"/>

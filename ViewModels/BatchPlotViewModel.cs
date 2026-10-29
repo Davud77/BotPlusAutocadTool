@@ -71,6 +71,23 @@ namespace BotPlusAutocadTool.ViewModels
         }
 
         public List<string> AllFormatNames { get; private set; }
+        public IReadOnlyList<PlotUnitDefinition> DrawingUnitChoices { get; } =
+            new[] { new PlotUnitDefinition(0, "Авто (из DWG / по рамкам)", 1) }.Concat(PlotUnits.Definitions).ToArray();
+        public string DrawingUnitsDescription => _service.DrawingUnits?.Description ?? "";
+        private string UnitsSection => "BatchPlotUnits:" + (AcadCoreApp.DocumentManager.MdiActiveDocument?.Name ?? "");
+        public int DrawingUnitsChoice
+        {
+            get => _service.DrawingUnitsOverride ?? 0;
+            set
+            {
+                if (IsBusy || DrawingUnitsChoice == value || value < 0) return;
+                if (value != 0) PlotUnits.Get(value);
+                _service.DrawingUnitsOverride = value == 0 ? null : value;
+                UserPreferences.Write(UnitsSection, new Newtonsoft.Json.Linq.JObject { ["Unit"] = value });
+                OnPropertyChanged();
+                LoadData();
+            }
+        }
 
         public bool IsTopToBottom { get => _service.SearchOrder == PlotSearchOrder.TopToBottom; set { if (value) SetSearchOrder(PlotSearchOrder.TopToBottom); } }
         public bool IsBottomToTop { get => _service.SearchOrder == PlotSearchOrder.BottomToTop; set { if (value) SetSearchOrder(PlotSearchOrder.BottomToTop); } }
@@ -211,6 +228,8 @@ namespace BotPlusAutocadTool.ViewModels
         {
             _drawingInteraction = drawingInteraction ?? (operation => operation());
             _service = new BatchPlotService();
+            int savedUnits = UserPreferences.Read(UnitsSection).Value<int?>("Unit") ?? 0;
+            if (PlotUnits.Definitions.Any(unit => unit.Code == savedUnits)) _service.DrawingUnitsOverride = savedUnits;
             if (Enum.TryParse(UserPreferences.Read("BatchPlotOrder").Value<string>("Direction"), out PlotSearchOrder order)
                 && Enum.IsDefined(typeof(PlotSearchOrder), order)) _service.SearchOrder = order;
             var filter = UserPreferences.Read("BatchPlotFilter");
@@ -258,7 +277,7 @@ namespace BotPlusAutocadTool.ViewModels
                 var point = doc.Editor.GetPoint("\nУкажите точку вставки ведомости в модели: ");
                 if (point.Status != PromptStatus.OK) return;
                 using (doc.LockDocument()) PlotIndexService.Insert(doc.Database, selected,
-                    point.Value.TransformBy(doc.Editor.CurrentUserCoordinateSystem), _service.PlotScale);
+                    point.Value.TransformBy(doc.Editor.CurrentUserCoordinateSystem), _service.PlotScale, _service.DrawingUnitsOverride);
                 doc.Editor.Regen();
                 StatusMessage = $"В модель вставлена таблица: {selected.Length} листов.";
             }
@@ -278,6 +297,7 @@ namespace BotPlusAutocadTool.ViewModels
                 StatusMessage = $"Загрузка блоков... (блок='{_service.BlockName}', слой='{_service.LayerName}')";
 
                 var blocks = _service.GetFormatBlocks();
+                OnPropertyChanged(nameof(DrawingUnitsDescription));
                 var selection = UserPreferences.Read(SelectionSection);
                 foreach (var block in blocks)
                     if (selection.TryGetValue(block.BlockId.Handle.ToString(), out var flag) && flag.Type == Newtonsoft.Json.Linq.JTokenType.Boolean)

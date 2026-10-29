@@ -40,6 +40,18 @@ public sealed class Plot141Checks
                 doc.Editor.CurrentUserCoordinateSystem = Matrix3d.Displacement(new Vector3d(500, 700, 0)) * Matrix3d.Rotation(Math.PI/6, Vector3d.ZAxis, Point3d.Origin);
                 string stem = transparency ? "on-twist90" : "off-top";
                 string dsd = Path.Combine(folder, stem + ".dsd"), pdf = Path.Combine(folder, stem + ".pdf");
+                // Cover both a new setup copied from an imperial Model layout and a reused
+                // imperial setup. Media selection must not leave the final scale in inches.
+                using (var tr = doc.Database.TransactionManager.StartTransaction())
+                {
+                    var model = (Layout)tr.GetObject(LayoutManager.Current.GetLayoutId("Model"), OpenMode.ForWrite);
+                    PlotSettingsValidator.Current.SetPlotPaperUnits(model, PlotPaperUnit.Inches);
+                    var dict = (DBDictionary)tr.GetObject(doc.Database.PlotSettingsDictionaryId, OpenMode.ForRead);
+                    if (dict.Contains("WEAM_Sheet1_A2"))
+                        PlotSettingsValidator.Current.SetPlotPaperUnits(
+                            (PlotSettings)tr.GetObject(dict.GetAt("WEAM_Sheet1_A2"), OpenMode.ForWrite), PlotPaperUnit.Inches);
+                    tr.Commit();
+                }
                 if (!BlockExportStage1Service.Run(doc, dsd, new List<BatchPlotItem> { item }, pdf, transparency)) throw new InvalidOperationException("Preparation failed");
                 using (var tr = doc.Database.TransactionManager.StartTransaction())
                 using (var data = new DsdData())
@@ -48,6 +60,9 @@ public sealed class Plot141Checks
                     using var entries = data.GetDsdEntryCollection();
                     var dict = (DBDictionary)tr.GetObject(doc.Database.PlotSettingsDictionaryId, OpenMode.ForRead);
                     var ps = (PlotSettings)tr.GetObject(dict.GetAt(entries[0].Nps), OpenMode.ForRead);
+                    if (ps.PlotPaperUnits != PlotPaperUnit.Millimeters || ps.UseStandardScale ||
+                        Math.Abs(ps.CustomPrintScale.Denominator / ps.CustomPrintScale.Numerator - item.PlotScale) > 1e-6)
+                        throw new InvalidOperationException("Imperial source setup changed the millimeter print scale");
                     var expectedMin = transparency ? new Point2d(-1420,1000) : new Point2d(1000,1000);
                     var expectedMax = transparency ? new Point2d(-1000,1594) : new Point2d(1594,1420);
                     if (ps.PlotWindowArea.MinPoint.GetDistanceTo(expectedMin) > .001 || ps.PlotWindowArea.MaxPoint.GetDistanceTo(expectedMax) > .001)
@@ -73,7 +88,7 @@ public sealed class Plot141Checks
                 vm.PlotTransparency = saved;
             }
             WindowChecks.Run();
-            doc.Editor.WriteMessage("\nBOTPLUS_PLOT141_PASS: A2 window at translated target, 90-degree view twist, rotated UCS, transparency off/on, native PDFs, settings and window; " + folder + "\n");
+            doc.Editor.WriteMessage("\nBOTPLUS_PLOT141_PASS: new/reused imperial page setups, A2 window at translated target, 90-degree view twist, rotated UCS, transparency off/on, native PDFs, settings and window; " + folder + "\n");
         }
         catch (System.Exception ex) { doc.Editor.WriteMessage("\nBOTPLUS_PLOT141_FAIL: " + ex + "\n"); }
         finally
