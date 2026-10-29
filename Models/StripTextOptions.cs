@@ -22,6 +22,7 @@ namespace BotPlusAutocadTool.Models
         public bool Tabs { get; set; } = true;
         public bool Tracking { get; set; } = true;
         public bool Underline { get; set; } = true;
+        public bool Strikethrough { get; set; }
         public bool Width { get; set; } = false;
 
         // Свойства объектов (Entity properties)

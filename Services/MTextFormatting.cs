@@ -29,7 +29,8 @@ namespace BotPlusAutocadTool.Services
                     result.Append('\\').Append(code);
                     continue;
                 }
-                if ((code is 'L' or 'l' && options.Underline) || (code is 'O' or 'o' && options.Overline)) continue;
+                if ((code is 'L' or 'l' && options.Underline) || (code is 'O' or 'o' && options.Overline) ||
+                    (code is 'K' or 'k' && options.Strikethrough)) continue;
                 if (code == '~' && options.NonBreakingSpace) { result.Append(' '); continue; }
                 if (code == 'P') { result.Append(options.LineFeed ? "\n" : "\\P"); continue; }
 

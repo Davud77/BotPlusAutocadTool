@@ -15,6 +15,9 @@ internal static class FeatureChecks
         Excel(Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument);
         Calculator(editor);
         TableSafetyChecks.Run(editor);
+        TableStyleResetChecks.Run(editor);
+        ServiceWindowChecks.Run();
+        editor.WriteMessage("\nFEATURE_PASS: integrated service settings below updates, no extra settings button, checkbox persistence, save all settings and legacy command compatibility\n");
         TableSafetyChecks.Index(editor);
     }
     private static void Calculator(Editor editor)

@@ -36,9 +36,21 @@ jobs:
           ./scripts/Build-Installer.ps1 -CompilerPath $compiler
       - name: Test installer in an isolated folder
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          $ErrorActionPreference = 'Stop'
           $version = ([xml](Get-Content BotPlusAutocadTool.csproj -Raw)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
-          ./scripts/Test-Installer.ps1 -InstallerPath "artifacts/release/BotPlusAutocadTool-$version-Setup.exe"
+          $previous = gh release view --repo $env:GITHUB_REPOSITORY --json tagName,assets | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot discover previous stable release.' }
+          $previousName = 'BotPlusAutocadTool-' + $previous.tagName.TrimStart('v') + '-Setup.exe'
+          $asset = $previous.assets | Where-Object { $_.name -eq $previousName } | Select-Object -First 1
+          if (!$asset) { throw 'Previous stable installer is missing.' }
+          gh release download $previous.tagName --repo $env:GITHUB_REPOSITORY --pattern $previousName --dir artifacts/previous
+          if ($LASTEXITCODE -ne 0) { throw 'Previous installer download failed.' }
+          $previousPath = "artifacts/previous/$previousName"
+          if ($asset.digest -and $asset.digest -ne ('sha256:' + (Get-FileHash -LiteralPath $previousPath -Algorithm SHA256).Hash.ToLowerInvariant())) { throw 'Previous installer checksum mismatch.' }
+          ./scripts/Test-Installer.ps1 -InstallerPath "artifacts/release/BotPlusAutocadTool-$version-Setup.exe" -PreviousInstallerPath $previousPath
       - name: Publish checked release assets
         shell: pwsh
         env:

@@ -2,6 +2,8 @@
  <PropertyGroup><TargetFramework>net8.0-windows</TargetFramework><PlatformTarget>x64</PlatformTarget><UseWPF>true</UseWPF><UseWindowsForms>true</UseWindowsForms><ImplicitUsings>disable</ImplicitUsings><Nullable>disable</Nullable></PropertyGroup>
  <ItemGroup>
   <Compile Include="../../UI/ClassicUiController.cs" Link="ClassicUiController.cs"/><Compile Include="../../UI/CommandCatalog.cs" Link="CommandCatalog.cs"/>
+  <Compile Include="../../UI/RibbonController.cs" Link="RibbonController.cs"/>
+  <Resource Include="../../Resources/*.png" Link="Resources/%(Filename)%(Extension)" />
   <Reference Include="AcCoreMgd"><HintPath>C:/Program Files/Autodesk/AutoCAD 2026/accoremgd.dll</HintPath><Private>false</Private></Reference>
   <Reference Include="AcDbMgd"><HintPath>C:/Program Files/Autodesk/AutoCAD 2026/acdbmgd.dll</HintPath><Private>false</Private></Reference>
   <Reference Include="AcMgd"><HintPath>C:/Program Files/Autodesk/AutoCAD 2026/acmgd.dll</HintPath><Private>false</Private></Reference>

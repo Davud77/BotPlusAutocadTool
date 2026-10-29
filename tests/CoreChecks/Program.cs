@@ -71,6 +71,9 @@ Assert(File.ReadAllText(settingsFile) == "replacement", "Failed save destroyed p
 Assert(Directory.GetFiles(results, "*.tmp").Length == 0, "Temporary settings leaked");
 
 var strip = new StripTextOptions();
+var tableTextOptions = new StripTextOptions { LineFeed = false, Tabs = false, NonBreakingSpace = false, Stacking = false, Width = true, Strikethrough = true };
+Assert(MTextFormatting.Strip(@"{\fArial|b1;\C1;\H2x;\W2;\KFirst\k}\PSecond \S1/2; \\K", tableTextOptions) == @"First\PSecond \S1/2; \\K",
+    "Table inline reset changed paragraphs/fractions/literal escapes or retained formatting");
 Assert(MTextFormatting.Strip(@"{\C1;Красный}\PВторая строка", strip) == "Красный\nВторая строка", "Formatting/line feed failed");
 Assert(MTextFormatting.Strip(@"First\PSecond;\pql;Third", strip) == "First\nSecond;Third", "Paragraph formatting consumed content");
 Assert(MTextFormatting.Strip(@"\\C1; literal \{braces\}", strip) == @"\\C1; literal \{braces\}", "Escaped literal content changed");

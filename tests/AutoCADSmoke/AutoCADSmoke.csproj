@@ -10,6 +10,7 @@
     <PackageReference Include="System.Text.Json" Version="9.0.4" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <Reference Include="BotPlusAutocadTool"><HintPath>..\..\bin\Release\AutoCAD$(AutoCADVersion)\$(TargetFramework)\BotPlusAutocadTool.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="AcCoreMgd"><HintPath>C:\Program Files\Autodesk\AutoCAD $(AutoCADVersion)\accoremgd.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="AcDbMgd"><HintPath>C:\Program Files\Autodesk\AutoCAD $(AutoCADVersion)\acdbmgd.dll</HintPath><Private>false</Private></Reference>
