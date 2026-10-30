@@ -76,6 +76,7 @@ if (System.Windows.MessageBox.Shown != 0) throw new Exception("Background failur
 Console.WriteLine("PASS: offline GitHub is contained; unexpected Idle failure unsubscribes without JIT dialogs.");
 Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.ThrowOnRead = false;
 UpdateFlowChecks.Run();
+await UpdatePanelChecks.Run();
 await DownloadChecks.Run();
 
 static void TestSettings(string scenario)

@@ -1,0 +1,24 @@
+<UserControl x:Class="BotPlusAutocadTool.Views.UpdatePanel" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources><BooleanToVisibilityConverter x:Key="UpdateBoolToVisibility"/></UserControl.Resources>
+    <StackPanel>
+        <Grid Margin="0,0,0,10">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <TextBlock Text="Текущая версия:" Margin="0,0,12,5"/>
+            <TextBlock Grid.Column="1" Text="{Binding CurrentVersion}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+            <TextBlock Grid.Row="1" Text="Актуальная версия:" Margin="0,0,12,0"/>
+            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding LatestVersion}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+        </Grid>
+        <WrapPanel Margin="0,0,0,6">
+            <Button Content="Проверить обновления" Command="{Binding CheckCommand}" Margin="0,0,8,6" Padding="10,6"/>
+            <Button Content="Скачать актуальную" Command="{Binding DownloadCommand}" Margin="0,0,8,6" Padding="10,6"/>
+            <Button Content="Отменить" Command="{Binding CancelCommand}" Margin="0,0,0,6" Padding="10,6" Visibility="{Binding IsBusy, Converter={StaticResource UpdateBoolToVisibility}}"/>
+        </WrapPanel>
+        <ProgressBar Minimum="0" Maximum="100" Height="7" Margin="0,0,0,8" IsIndeterminate="{Binding IsIndeterminate}" Value="{Binding ProgressPercent, Mode=OneWay}" Visibility="{Binding IsBusy, Converter={StaticResource UpdateBoolToVisibility}}"/>
+        <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+        <StackPanel Margin="0,0,0,10" Visibility="{Binding HasSavedPath, Converter={StaticResource UpdateBoolToVisibility}}">
+            <TextBox Text="{Binding SavedPath, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Margin="0,0,0,6"/>
+            <Button Content="Скопировать путь" Click="CopyPathClick" HorizontalAlignment="Left" Padding="10,6"/>
+        </StackPanel>
+    </StackPanel>
+</UserControl>

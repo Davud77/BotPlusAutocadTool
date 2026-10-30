@@ -7,6 +7,8 @@
     <Compile Include="..\..\Services\SettingsService.cs" Link="SettingsService.cs" />
     <Compile Include="..\..\Services\UpdateCheckService.cs" Link="UpdateCheckService.cs" />
     <Compile Include="..\..\Services\UpdateDownloadService.cs" Link="UpdateDownloadService.cs" />
+    <Compile Include="..\..\ViewModels\BaseViewModel.cs" Link="BaseViewModel.cs" />
+    <Compile Include="..\..\ViewModels\UpdatePanelViewModel.cs" Link="UpdatePanelViewModel.cs" />
     <Compile Include="..\..\Infrastructure\AtomicFile.cs" Link="AtomicFile.cs" />
   </ItemGroup>
 </Project>

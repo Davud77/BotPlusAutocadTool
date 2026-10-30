@@ -4,7 +4,6 @@ using System.Net.Http;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows;
 using AcadApp = Autodesk.AutoCAD.ApplicationServices.Application;
 
 namespace BotPlusAutocadTool.Services
@@ -14,7 +13,6 @@ namespace BotPlusAutocadTool.Services
         private static readonly HttpClient Client = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
         private static CancellationTokenSource _cancel;
         private static Task<ReleaseVersion> _pending;
-        private static bool _manual;
         private static readonly UpdateSchedule Schedule = new UpdateSchedule();
 
         public static void Start()
@@ -36,9 +34,9 @@ namespace BotPlusAutocadTool.Services
         }
         public static void Check(bool manual)
         {
-            if (_pending != null) { if (manual) _manual = true; return; }
-            _manual = manual;
-            if (!manual) Schedule.Checked(DateTime.UtcNow);
+            if (manual) { Views.AboutWindow.OpenUpdates(); return; }
+            if (_pending != null) return;
+            Schedule.Checked(DateTime.UtcNow);
             SettingsService.Settings.LastUpdateCheckUtc = DateTime.UtcNow;
             SettingsService.Save();
             _cancel = new CancellationTokenSource();
@@ -46,6 +44,12 @@ namespace BotPlusAutocadTool.Services
             _pending = Fetch(prerelease, _cancel.Token);
         }
         private static async Task<ReleaseVersion> Fetch(bool prerelease, CancellationToken token)
+            => await FetchRelease(prerelease, token, false).ConfigureAwait(false);
+
+        public static async Task<ReleaseVersion> FetchLatestAsync(bool prerelease, CancellationToken token)
+            => await FetchRelease(prerelease, token, true).ConfigureAwait(false);
+
+        private static async Task<ReleaseVersion> FetchRelease(bool prerelease, CancellationToken token, bool latest)
         {
             using (var request = new HttpRequestMessage(HttpMethod.Get, "https://api.github.com/repos/Davud77/BotPlusAutocadTool/releases?per_page=30"))
             {
@@ -55,7 +59,7 @@ namespace BotPlusAutocadTool.Services
                 {
                     response.EnsureSuccessStatusCode();
                     var json = await response.Content.ReadAsStringAsync(token).ConfigureAwait(false);
-                    return ReleaseVersion.FindUpdate(json, Assembly.GetExecutingAssembly().GetName().Version, prerelease);
+                    return latest ? ReleaseVersion.FindLatest(json, prerelease) : ReleaseVersion.FindUpdate(json, Assembly.GetExecutingAssembly().GetName().Version, prerelease);
                 }
             }
         }
@@ -76,27 +80,26 @@ namespace BotPlusAutocadTool.Services
             if (_pending == null || !_pending.IsCompleted || AcadApp.DocumentManager.MdiActiveDocument == null) return;
             var doc = AcadApp.DocumentManager.MdiActiveDocument;
             if (!string.IsNullOrEmpty(doc.CommandInProgress)) return;
-            var task = _pending; var manual = _manual;
+            var task = _pending;
             _pending = null;
             _cancel?.Dispose(); _cancel = null;
             try
             {
                 var update = task.GetAwaiter().GetResult();
-                if (!manual && !SettingsService.Settings.AutoCheckUpdates) return;
+                if (!SettingsService.Settings.AutoCheckUpdates) return;
                 SettingsService.Settings.LastUpdateCheckUtc = DateTime.UtcNow;
                 SettingsService.Save();
                 if (update != null)
                 {
-                    if (!manual && SettingsService.Settings.LastNotifiedUpdateTag == update.Tag) return;
+                    if (SettingsService.Settings.LastNotifiedUpdateTag == update.Tag) return;
                     SettingsService.Settings.LastNotifiedUpdateTag = update.Tag;
                     SettingsService.Save();
-                    AcadApp.ShowModalWindow(new Views.UpdateDownloadWindow(update));
+                    Views.AboutWindow.ShowUpdate(update);
                 }
-                else if (manual) MessageBox.Show("Более новой опубликованной версии не найдено.", "BotPlusAutocadTool", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (System.Exception ex)
             {
-                if (manual) MessageBox.Show("Не удалось проверить обновления: " + ex.Message, "BotPlusAutocadTool", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Infrastructure.PluginLog.Error("Automatic update check", ex);
             }
         }
         public static void Stop()

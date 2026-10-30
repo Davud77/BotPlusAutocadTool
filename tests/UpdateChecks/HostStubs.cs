@@ -37,6 +37,12 @@ namespace BotPlusAutocadTool.Views
     {
         public BotPlusAutocadTool.Services.ReleaseVersion Release { get; } = release;
     }
+    internal static class AboutWindow
+    {
+        public static int OpenRequests, Presentations;
+        public static void OpenUpdates() => OpenRequests++;
+        public static void ShowUpdate(BotPlusAutocadTool.Services.ReleaseVersion release) => Presentations++;
+    }
 }
 namespace System.Windows
 {

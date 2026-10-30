@@ -15,26 +15,34 @@ namespace BotPlusAutocadTool.Services
         public long InstallerSize { get; private set; }
         public string InstallerSha256 { get; private set; }
         public Uri ChecksumsUrl { get; private set; }
+        public bool IsPrerelease { get; private set; }
         private ReleaseVersion(Version version, string tag, Uri url) { Version = version; Tag = tag; Url = url; }
 
         public static ReleaseVersion FindUpdate(string json, Version installed, bool includePrerelease = false)
+            => FindBest(json, installed, includePrerelease);
+
+        public static ReleaseVersion FindLatest(string json, bool includePrerelease = false)
+            => FindBest(json, null, includePrerelease);
+
+        private static ReleaseVersion FindBest(string json, Version installed, bool includePrerelease)
         {
             ReleaseVersion best = null;
             foreach (var release in JArray.Parse(json))
             {
                 if (release.Value<bool>("draft") || (!includePrerelease && release.Value<bool>("prerelease"))) continue;
                 string tag = release.Value<string>("tag_name");
-                string number = tag?.TrimStart('v', 'V').Split('-', '+')[0];
+                string label = tag?.TrimStart('v', 'V');
+                string number = label?.Split('-', '+')[0];
                 if (!Version.TryParse(number, out var version)) continue;
                 var normalized = new Version(version.Major, version.Minor, Math.Max(0, version.Build));
-                var current = new Version(installed.Major, installed.Minor, Math.Max(0, installed.Build));
-                if (normalized <= current || (best != null && normalized <= best.Version)) continue;
+                var current = installed == null ? null : new Version(installed.Major, installed.Minor, Math.Max(0, installed.Build));
+                if ((current != null && normalized <= current) || (best != null && normalized <= best.Version)) continue;
                 if (!Uri.TryCreate(release.Value<string>("html_url"), UriKind.Absolute, out var url) ||
                     url.Scheme != "https" || url.Host != "github.com" ||
                     !url.AbsolutePath.StartsWith("/Davud77/BotPlusAutocadTool/releases/", StringComparison.Ordinal)) continue;
-                best = new ReleaseVersion(normalized, tag, url);
-                string installer = "BotPlusAutocadTool-" + number + "-Setup.exe";
-                string checksums = "SHA256SUMS-" + number + ".txt";
+                best = new ReleaseVersion(normalized, tag, url) { IsPrerelease = release.Value<bool>("prerelease") };
+                string installer = "BotPlusAutocadTool-" + label + "-Setup.exe";
+                string checksums = "SHA256SUMS-" + label + ".txt";
                 foreach (var asset in release["assets"] as JArray ?? new JArray())
                 {
                     string name = asset.Value<string>("name");

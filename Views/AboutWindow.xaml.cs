@@ -9,6 +9,7 @@ using System.Windows.Media;
 using Newtonsoft.Json;
 using BotPlusAutocadTool.Infrastructure;
 using BotPlusAutocadTool.Services;
+using BotPlusAutocadTool.ViewModels;
 
 namespace BotPlusAutocadTool.Views
 {
@@ -19,14 +20,31 @@ namespace BotPlusAutocadTool.Views
             public int PlotScaleIndex { get => PlotScale == 100 ? 1 : 0; set => PlotScale = value == 1 ? 100 : 1; }
         }
         private bool _loading;
-        public AboutWindow()
+        private static AboutWindow _active;
+        public AboutWindow() : this(null) { }
+        public AboutWindow(ReleaseVersion release)
         {
             InitializeComponent();
             var version = Assembly.GetExecutingAssembly().GetName().Version;
             VersionText.Text = "Версия " + (version.Build == 0 ? version.ToString(2) : version.ToString(3));
+            InlineUpdates.Model = new UpdatePanelViewModel(version,
+                () => SettingsService.Settings.IncludePrereleaseUpdates,
+                async (preview, token) =>
+                {
+                    SettingsService.Settings.LastUpdateCheckUtc = DateTime.UtcNow; SettingsService.Save();
+                    var latest = await UpdateCheckService.FetchLatestAsync(preview, token);
+                    if (!token.IsCancellationRequested && latest != null && latest.Version > version)
+                    { SettingsService.Settings.LastNotifiedUpdateTag = latest.Tag; SettingsService.Save(); }
+                    return latest;
+                },
+                (latest, progress, token) => UpdateDownloadService.DownloadAsync(latest,
+                    Path.Combine(PluginPaths.UserDataDirectory, "Updates", latest.Version.ToString()), progress, token), PluginLog.Error);
+            if (release != null) InlineUpdates.Model.PresentRelease(release);
             LoadEditor(JsonConvert.DeserializeObject<EditableSettings>(JsonConvert.SerializeObject(SettingsService.Settings)));
             AddHandler(System.Windows.Controls.Primitives.ToggleButton.CheckedEvent, new RoutedEventHandler(SaveCheckbox), true);
             AddHandler(System.Windows.Controls.Primitives.ToggleButton.UncheckedEvent, new RoutedEventHandler(SaveCheckbox), true);
+            Loaded += (_, _) => _active = this;
+            Closed += (_, _) => { if (ReferenceEquals(_active, this)) _active = null; InlineUpdates.Model.Dispose(); };
         }
 
         private void LoadEditor(EditableSettings settings)
@@ -45,6 +63,7 @@ namespace BotPlusAutocadTool.Views
             if ((bool)property.GetValue(SettingsService.Settings) == value) return;
             property.SetValue(SettingsService.Settings, value);
             SettingsService.Save();
+            if (path == nameof(PluginSettings.IncludePrereleaseUpdates)) InlineUpdates.Model.ChannelChanged();
         }
 
         private void OpenProject(object sender, RoutedEventArgs args) => Open("https://github.com/Davud77/BotPlusAutocadTool");
@@ -89,7 +108,18 @@ namespace BotPlusAutocadTool.Views
             { MessageBox.Show(this, "Не удалось сохранить настройки. Подробности записаны в журнал.", Title); return; }
             Close();
         }
-        private void CheckUpdates(object sender, RoutedEventArgs args) => UpdateCheckService.Check(true);
+        public static void OpenUpdates()
+        {
+            if (_active != null) { _active.Activate(); _ = _active.InlineUpdates.Model.CheckAsync(); return; }
+            var window = new AboutWindow();
+            window.Loaded += async (_, _) => await window.InlineUpdates.Model.CheckAsync();
+            Autodesk.AutoCAD.ApplicationServices.Application.ShowModalWindow(window);
+        }
+        public static void ShowUpdate(ReleaseVersion release)
+        {
+            if (_active != null) { _active.InlineUpdates.Model.PresentRelease(release); return; }
+            Autodesk.AutoCAD.ApplicationServices.Application.ShowModalWindow(new AboutWindow(release));
+        }
         private void CloseWindow(object sender, RoutedEventArgs args) => Close();
         private void OpenLogs(object sender, RoutedEventArgs args)
         {
