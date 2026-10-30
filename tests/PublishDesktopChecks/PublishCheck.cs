@@ -19,6 +19,7 @@ public sealed class PublishCheck
     private static List<BatchPlotItem> _items;
     private static int _stage, _oldFileDia, _oldBackground, _stageCount;
     private static bool _transparency141;
+    private static bool _styles17;
     private static int _stageTransparencyOriginal;
     private static object _initialTransparencyOverride;
     private static DateTime _deadline;
@@ -44,8 +45,19 @@ public sealed class PublishCheck
             _initialTransparencyOverride = AcadApp.GetSystemVariable("PLOTTRANSPARENCYOVERRIDE");
             bool matrix = Environment.GetEnvironmentVariable("BOTPLUS_GOST_DRAWING") == "matrix";
             _transparency141 = Environment.GetEnvironmentVariable("BOTPLUS_GOST_DRAWING") == "transparency";
+            _styles17 = Environment.GetEnvironmentVariable("BOTPLUS_GOST_DRAWING") == "styles17";
             _stageCount = matrix ? 1 : 2;
-            if (_transparency141)
+            if (_styles17)
+            {
+                _items = new List<BatchPlotItem> { GostPaperFixture.BuildTransparencyA2(_document.Database) };
+                using var tr = _document.Database.TransactionManager.StartTransaction();
+                var block = (BlockReference)tr.GetObject(_items[0].BlockId, OpenMode.ForRead);
+                var definition = (BlockTableRecord)tr.GetObject(block.BlockTableRecord, OpenMode.ForRead);
+                foreach (var id in definition.Cast<ObjectId>())
+                    if (tr.GetObject(id, OpenMode.ForWrite) is Solid solid) solid.ColorIndex = 1;
+                tr.Commit();
+            }
+            else if (_transparency141)
             {
                 _items = new List<BatchPlotItem> { GostPaperFixture.BuildTransparencyA2(_document.Database) };
                 using var view = _document.Editor.GetCurrentView();
@@ -112,6 +124,8 @@ public sealed class PublishCheck
     private static void TracePublish(object sender, EventArgs e) => Log("Publisher.EndPublish received");
     private static void StartStage()
     {
+        if (_styles17 && !BlockExportStage1Service.Run(_document, Dsd(_stage), _items, Pdf(_stage), false, _stage == 0 ? "" : "monochrome.ctb"))
+            throw new InvalidOperationException("Stage-specific plot style preparation failed");
         _deadline = DateTime.UtcNow.AddMinutes(8);
         if (_transparency141) AcadApp.SetSystemVariable("PLOTTRANSPARENCYOVERRIDE", _stage == 0 ? 2 : 0);
         _stageTransparencyOriginal = Convert.ToInt32(AcadApp.GetSystemVariable("PLOTTRANSPARENCYOVERRIDE"));

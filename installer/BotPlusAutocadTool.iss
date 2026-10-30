@@ -6,10 +6,10 @@
 #endif
 #define ProjectDir ".."
 #ifndef AppVersion
-  #define AppVersion "1.6"
+  #define AppVersion "1.7"
 #endif
 #ifndef AppFileVersion
-  #define AppFileVersion "1.6.0.0"
+  #define AppFileVersion "1.7.0.0"
 #endif
 
 [Setup]
@@ -68,6 +68,7 @@ Source: "{#ProjectDir}\docs\USAGE-1.4.md"; DestDir: "{app}\Documentation\docs"; 
 Source: "{#ProjectDir}\docs\USAGE-1.4.1.md"; DestDir: "{app}\Documentation\docs"; Flags: ignoreversion
 Source: "{#ProjectDir}\docs\USAGE-1.5.md"; DestDir: "{app}\Documentation\docs"; Flags: ignoreversion
 Source: "{#ProjectDir}\docs\USAGE-1.6.md"; DestDir: "{app}\Documentation\docs"; Flags: ignoreversion
+Source: "{#ProjectDir}\docs\USAGE-1.7.md"; DestDir: "{app}\Documentation\docs"; Flags: ignoreversion
 Source: "{#ProjectDir}\docs\UPDATE-VALIDATION.md"; DestDir: "{app}\Documentation\docs"; Flags: ignoreversion
 Source: "{#ProjectDir}\docs\MERGE-NOTES.md"; DestDir: "{app}\Documentation\docs"; Flags: ignoreversion
 Source: "{#ProjectDir}\scripts\Get-LoadDiagnostics.ps1"; DestDir: "{app}\Documentation"; Flags: ignoreversion

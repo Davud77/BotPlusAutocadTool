@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ApplicationPackage SchemaVersion="1.0" AutodeskProduct="AutoCAD" ProductType="Application"
   Name="BotPlusAutocadTool" Description="BotPlusAutocadTool — инструменты AutoCAD 2025–2027"
-  AppVersion="1.6" ProductCode="{98BED5F2-3CAB-47DD-8344-E681FEA048DB}" Author="OOXGN">
+  AppVersion="1.7" ProductCode="{98BED5F2-3CAB-47DD-8344-E681FEA048DB}" Author="OOXGN">
   <CompanyDetails Name="OOXGN" />
   <Components Description="AutoCAD 2025–2026 (.NET 8)">
     <RuntimeRequirements OS="Win64" Platform="AutoCAD|AutoCAD*" SeriesMin="R25.0" SeriesMax="R25.1" SupportPath="./Contents/Windows/2025-2026" />

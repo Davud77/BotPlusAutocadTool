@@ -37,6 +37,8 @@ internal static class WindowChecks
                 content.Measure(new Size(width, height));
                 content.Arrange(new Rect(0, 0, width, height));
                 content.UpdateLayout();
+                double printHeaderHeight = window is BatchPlotWindow initialPrinting ? ((FrameworkElement)initialPrinting.FindName("PrintToolbar")).ActualHeight : 0;
+                double printListHeight = window is BatchPlotWindow initialList ? ((DataGrid)initialList.FindName("FramesGrid")).ActualHeight : 0;
                 var bitmap = new RenderTargetBitmap((int)width, (int)height, 96, 96, PixelFormats.Pbgra32);
                 bitmap.Render(content);
                 var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
@@ -44,8 +46,10 @@ internal static class WindowChecks
                 using var stream = File.Create(Path.Combine(results, window.GetType().Name + suffix + ".png"));
                 encoder.Save(stream);
                 // Check the complete form remains reachable on a smaller working area.
-                content.Measure(new Size(400, 320)); content.Arrange(new Rect(0, 0, 400, 320)); content.UpdateLayout();
-                var narrow = new RenderTargetBitmap(400, 320, 96, 96, PixelFormats.Pbgra32); narrow.Render(content);
+                int smallWidth = window is BatchPlotWindow ? (int)window.MinWidth : 400;
+                int smallHeight = window is BatchPlotWindow ? (int)window.MinHeight : 320;
+                content.Measure(new Size(smallWidth, smallHeight)); content.Arrange(new Rect(0, 0, smallWidth, smallHeight)); content.UpdateLayout();
+                var narrow = new RenderTargetBitmap(smallWidth, smallHeight, 96, 96, PixelFormats.Pbgra32); narrow.Render(content);
                 var narrowEncoder = new PngBitmapEncoder(); narrowEncoder.Frames.Add(BitmapFrame.Create(narrow));
                 using (var narrowFile = File.Create(Path.Combine(results, window.GetType().Name + suffix + "-narrow.png"))) narrowEncoder.Save(narrowFile);
                 var scroll = (window.Content as DockPanel)?.Children.OfType<ScrollViewer>().SingleOrDefault();
@@ -53,6 +57,10 @@ internal static class WindowChecks
                 {
                     var header = (FrameworkElement)printing.FindName("PrintToolbar");
                     var grid = (DataGrid)printing.FindName("FramesGrid");
+                    if (header is ScrollViewer || Math.Abs(header.ActualHeight - printHeaderHeight) > .1 || header.ActualHeight > 115)
+                        throw new InvalidOperationException("Print toolbar scrolls, resizes or is not compact");
+                    if (Math.Abs((printListHeight - grid.ActualHeight) - (height - smallHeight)) > 1)
+                        throw new InvalidOperationException("Window height reduction was not confined to the sheet list");
                     if (grid.ActualHeight <= 30) throw new InvalidOperationException("Print list has no scrolling viewport");
                     var position = header.TranslatePoint(new Point(0, 0), content);
                     if (grid.Items.Count > 0) grid.ScrollIntoView(grid.Items[grid.Items.Count - 1]);

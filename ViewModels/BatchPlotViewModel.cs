@@ -74,6 +74,36 @@ namespace BotPlusAutocadTool.ViewModels
         public IReadOnlyList<PlotUnitDefinition> DrawingUnitChoices { get; } =
             new[] { new PlotUnitDefinition(0, "Авто (из DWG / по рамкам)", 1) }.Concat(PlotUnits.Definitions).ToArray();
         public string DrawingUnitsDescription => _service.DrawingUnits?.Description ?? "";
+        public string DrawingUnitsSummary => _service.DrawingUnits == null ? "" : _service.DrawingUnits.IsAssumed
+            ? "Единицы не заданы — проверьте" : "1 ед. = " + _service.DrawingUnits.Unit.Name;
+        public bool DrawingUnitsWarning => _service.DrawingUnits?.IsAssumed == true;
+        public List<PlotStyleChoice> PlotStyleChoices { get; private set; } = new();
+        public string PlotStyleLabel => "Стиль (" + (AcadCoreApp.DocumentManager.MdiActiveDocument?.Database.PlotStyleMode == false ? "STB" : "CTB") + ")";
+        private string StyleSection => "BatchPlotStyle:" + (AcadCoreApp.DocumentManager.MdiActiveDocument?.Name ?? "");
+        private PlotStyleChoice _selectedPlotStyle;
+        public PlotStyleChoice SelectedPlotStyle
+        {
+            get => _selectedPlotStyle;
+            set
+            {
+                if (IsBusy || value == null || !SetProperty(ref _selectedPlotStyle, value)) return;
+                UserPreferences.Write(StyleSection, new Newtonsoft.Json.Linq.JObject { ["File"] = value.FileName });
+            }
+        }
+        private void RefreshPlotStyles()
+        {
+            var db = AcadCoreApp.DocumentManager.MdiActiveDocument?.Database;
+            if (db == null) return;
+            string saved = UserPreferences.Read(StyleSection).Value<string>("File");
+            PlotStyleChoices = PlotStyleService.GetChoices(db);
+            _selectedPlotStyle = PlotStyleChoices.FirstOrDefault(choice => string.Equals(choice.FileName, saved, StringComparison.OrdinalIgnoreCase));
+            if (_selectedPlotStyle == null)
+            {
+                _selectedPlotStyle = new PlotStyleChoice(saved, saved + " (не найден)");
+                PlotStyleChoices.Add(_selectedPlotStyle);
+            }
+            OnPropertyChanged(nameof(PlotStyleChoices)); OnPropertyChanged(nameof(SelectedPlotStyle)); OnPropertyChanged(nameof(PlotStyleLabel));
+        }
         private string UnitsSection => "BatchPlotUnits:" + (AcadCoreApp.DocumentManager.MdiActiveDocument?.Name ?? "");
         public int DrawingUnitsChoice
         {
@@ -298,6 +328,8 @@ namespace BotPlusAutocadTool.ViewModels
 
                 var blocks = _service.GetFormatBlocks();
                 OnPropertyChanged(nameof(DrawingUnitsDescription));
+                OnPropertyChanged(nameof(DrawingUnitsSummary)); OnPropertyChanged(nameof(DrawingUnitsWarning));
+                RefreshPlotStyles();
                 var selection = UserPreferences.Read(SelectionSection);
                 foreach (var block in blocks)
                     if (selection.TryGetValue(block.BlockId.Handle.ToString(), out var flag) && flag.Type == Newtonsoft.Json.Linq.JTokenType.Boolean)
@@ -575,7 +607,7 @@ namespace BotPlusAutocadTool.ViewModels
                 string pdfPath = Path.Combine(jobDirectory, "Result.pdf");
 
                 // 1) Генерируем DSD и PageSetup'ы с учетом выбранных листов
-                bool dsdReady = BlockExportStage1Service.Run(doc, dsdPath, selected, pdfPath, PlotTransparency);
+                bool dsdReady = BlockExportStage1Service.Run(doc, dsdPath, selected, pdfPath, PlotTransparency, SelectedPlotStyle?.FileName);
 
                 if (!dsdReady)
                 {

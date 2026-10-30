@@ -40,6 +40,9 @@ namespace BotPlusAutocadTool.Services
         /// ВАЖНО: порядок DSD = порядок itemsToPrint (без GroupBy по форматам).
         /// </summary>
         public static bool Run(Document doc, string dsdPath, List<BatchPlotItem> itemsToPrint, string pdfOutputPath = null, bool? plotTransparency = null)
+            => Run(doc, dsdPath, itemsToPrint, pdfOutputPath, plotTransparency, null);
+
+        public static bool Run(Document doc, string dsdPath, List<BatchPlotItem> itemsToPrint, string pdfOutputPath, bool? plotTransparency, string plotStyleSheet)
         {
             if (doc == null) return false;
             if (itemsToPrint == null || !itemsToPrint.Any()) return false;
@@ -76,6 +79,7 @@ namespace BotPlusAutocadTool.Services
             var unitChoices = printItems.Select(i => i.DrawingUnitsOverride).Distinct().ToArray();
             if (unitChoices.Length != 1) throw new InvalidOperationException("Единицы листов одного задания должны совпадать. Обновите список печати.");
             var drawingUnits = BatchPlotService.ResolveDrawingUnits(db, unitChoices[0], printItems);
+            var plotStyle = PlotStyleService.Resolve(db, plotStyleSheet);
             ed.WriteMessage($"\n[BotPlus AT] Единицы печати: {drawingUnits.Description}\n");
 
             string plotterPath = PdfPlotterService.EnsureInstalled();
@@ -126,7 +130,7 @@ namespace BotPlusAutocadTool.Services
                             psDict.UpgradeOpen();
                         }
 
-                        ApplyPlotSettingsForItem(ps, item, ed, tr, mediaOptions, transparency, drawingUnits);
+                        ApplyPlotSettingsForItem(ps, item, ed, tr, mediaOptions, transparency, drawingUnits, plotStyle);
                         pageSetupCache[cacheKey] = setupName;
                     }
                     else
@@ -162,7 +166,8 @@ namespace BotPlusAutocadTool.Services
                             prepared.PlotWindowArea.MaxPoint.X, prepared.PlotWindowArea.MaxPoint.Y },
                         Units = prepared.PlotPaperUnits.ToString(), UseStandardScale = prepared.UseStandardScale,
                         CustomScale = new[] { prepared.CustomPrintScale.Numerator, prepared.CustomPrintScale.Denominator },
-                        Scale = item.PlotScale, Transparency = prepared.PlotTransparency
+                        Scale = item.PlotScale, Transparency = prepared.PlotTransparency,
+                        StyleSheet = prepared.CurrentStyleSheet, PlotStyles = prepared.PlotPlotStyles, Lineweights = prepared.PrintLineweights
                     });
                     sheetIndex++;
                 }
@@ -208,7 +213,7 @@ namespace BotPlusAutocadTool.Services
         }
 
         private static void ApplyPlotSettingsForItem(PlotSettings ps, BatchPlotItem item, Editor ed, Transaction tr,
-            List<(string Name, double Width, double Height)> mediaOptions, bool plotTransparency, PlotUnitContext drawingUnits)
+            List<(string Name, double Width, double Height)> mediaOptions, bool plotTransparency, PlotUnitContext drawingUnits, PlotStyleService.Resolved plotStyle)
         {
             PlotSettingsValidator psv = PlotSettingsValidator.Current;
 
@@ -238,6 +243,7 @@ namespace BotPlusAutocadTool.Services
                 psv.SetPlotWindowArea(ps, windowDcs);
                 psv.SetPlotType(ps, Autodesk.AutoCAD.DatabaseServices.PlotType.Window);
                 ps.PlotTransparency = plotTransparency;
+                PlotStyleService.Apply(ps, plotStyle);
                 // All supported frames use zero-margin paper, their exact print scale,
                 // and a common lower-left origin. No fitting or centering of long sheets.
                 psv.SetUseStandardScale(ps, false);
